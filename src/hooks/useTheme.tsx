@@ -42,14 +42,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     root.style.colorScheme = resolvedTheme;
     root.dataset.accent = accentColor;
     const primary = accentPalettes[accentColor][resolvedTheme];
-    const foreground = resolvedTheme === 'dark' ? '250 30% 12%' : '0 0% 100%';
+    const foreground = resolvedTheme === 'dark' ? (accentColor === 'black' ? '0 0% 0%' : '250 30% 12%') : '0 0% 100%';
     for (const token of ['--primary', '--ring', '--sidebar-primary', '--sidebar-ring']) {
       root.style.setProperty(token, primary);
     }
     for (const token of ['--primary-foreground', '--sidebar-primary-foreground']) {
       root.style.setProperty(token, foreground);
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#15131b' : '#fafafa');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', accentColor === 'black' ? (resolvedTheme === 'dark' ? '#000000' : '#ffffff') : (resolvedTheme === 'dark' ? '#15131b' : '#fafafa'));
   }, [resolvedTheme, accentColor]);
 
   useEffect(() => {

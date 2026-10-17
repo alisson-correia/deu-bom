@@ -14,7 +14,7 @@ export function AccentColorPicker() {
       <SelectContent className="max-h-72 rounded-xl" collisionPadding={12}>
         {accentColors.map((color) => <SelectItem key={color} value={color} className="min-h-11 rounded-lg">
           <span className="flex items-center gap-3">
-            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full border border-foreground/10" style={{ backgroundColor: `hsl(${accentPalettes[color][resolvedTheme]})` }} />
+            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full border border-foreground/10" style={{ backgroundColor: color === 'black' ? '#111111' : `hsl(${accentPalettes[color][resolvedTheme]})` }} />
             {accentPalettes[color].label}
           </span>
         </SelectItem>)}

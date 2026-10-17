@@ -167,18 +167,21 @@ test('páginas financeiras, compras e configurações não extrapolam a largura 
 });
 
 test('cores independentes do modo persistem e mantêm contraste em todas as paletas', async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
   await backend(page); await login(page);
   const primaryColor = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
   for (const mode of ['Claro', 'Escuro']) {
     await theme(page, mode);
     const seen = new Set<string>();
-    for (const [id, name] of [['blue', 'Azul'], ['green', 'Verde'], ['purple', 'Roxo'], ['pink', 'Rosa'], ['indigo', 'Índigo'], ['teal', 'Turquesa'], ['cyan', 'Ciano'], ['orange', 'Laranja'], ['coral', 'Coral'], ['slate', 'Grafite']]) {
+    for (const [id, name] of [['blue', 'Azul'], ['green', 'Verde'], ['purple', 'Roxo'], ['pink', 'Rosa'], ['indigo', 'Índigo'], ['teal', 'Turquesa'], ['cyan', 'Ciano'], ['orange', 'Laranja'], ['coral', 'Coral'], ['black', 'Preto'], ['charcoal', 'Cinza escuro'], ['silver', 'Prata'], ['navy', 'Azul-marinho'], ['lavender', 'Lavanda'], ['magenta', 'Magenta'], ['wine', 'Vinho'], ['brown', 'Chocolate'], ['amber', 'Âmbar'], ['yellow', 'Amarelo'], ['lime', 'Lima'], ['olive', 'Oliva'], ['mint', 'Menta'], ['emerald', 'Esmeralda'], ['slate', 'Grafite']]) {
       await page.getByRole('button', { name: 'Alterar tema' }).click();
       await page.getByRole('menuitemradio', { name, exact: true }).click();
   await expect(page.getByRole('menu')).toHaveCount(0);
       await expect(page.locator('html')).toHaveAttribute('data-accent', id);
       seen.add(await primaryColor());
+      const background = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim());
+      if (id === 'black') await expect.poll(background).toBe(mode === 'Escuro' ? '0 0% 0%' : '0 0% 100%');
+      if (id === 'charcoal') await expect.poll(background).not.toBe(mode === 'Escuro' ? '0 0% 0%' : '0 0% 100%');
       const ratios = await page.evaluate(() => {
         const color = (value: string) => {
           const probe = document.createElement('span'); probe.style.color = value; document.body.append(probe);
@@ -192,7 +195,7 @@ test('cores independentes do modo persistem e mantêm contraste em todas as pale
       for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    expect(seen.size).toBe(10);
+    expect(seen.size).toBe(24);
   }
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'slate');
@@ -202,7 +205,7 @@ test('cores independentes do modo persistem e mantêm contraste em todas as pale
   const picker = page.getByRole('combobox', { name: 'Cor de destaque', exact: true });
   await expect(picker).toContainText('Grafite');
   await picker.click();
-  await expect(page.getByRole('option')).toHaveCount(10);
+  await expect(page.getByRole('option')).toHaveCount(24);
   await page.getByRole('option', { name: 'Azul', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'blue');
   await theme(page, 'Sistema');
@@ -396,7 +399,7 @@ test('cor escolhida também acompanha seleção e salvar nos modais de cadastro'
   await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
   for (const mode of ['Claro', 'Escuro']) {
     await theme(page, mode);
-    for (const color of ['Azul', 'Verde', 'Roxo', 'Rosa']) {
+    for (const color of ['Azul', 'Verde', 'Roxo', 'Rosa', 'Preto']) {
       await page.getByRole('button', { name: 'Alterar tema' }).click();
       await page.getByRole('menuitemradio', { name: color, exact: true }).click();
       await page.getByRole('button', { name: 'Nova despesa', exact: true }).click();

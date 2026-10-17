@@ -8,7 +8,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => entry.isDirectory() ? files(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
 const hash = createHash('sha256');
-for (const file of [...files(path.resolve('src')), 'index.html', 'package-lock.json']) hash.update(file.replace(process.cwd(), '')).update(readFileSync(file));
+for (const file of [...files(path.resolve('src')), 'index.html', 'package-lock.json', 'vite.config.ts']) hash.update(file.replace(process.cwd(), '')).update(readFileSync(file));
 const appVersion = hash.digest('hex').slice(0, 16);
 const versionBody = JSON.stringify({ version: appVersion });
 const appVersionPlugin = {
@@ -62,6 +62,8 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [],
+        // OAuth callbacks must reach the server, never the offline SPA fallback.
+        navigateFallbackDenylist: [/^\/api(?:\/|$)/],
       },
     }),
   ].filter(Boolean),

@@ -21,7 +21,7 @@ O projeto esperado está em `supabase/config.toml`: `ufmzkxhrljpogulllnzv`. Use 
 ## Ajustes de interface
 
 - Controle por ícone de sol/lua sempre acessível: Claro, Escuro e Sistema, com escolha persistida e acompanhamento da preferência do dispositivo.
-- Dez paletas (roxo, azul, verde, rosa, índigo, turquesa, ciano, laranja, coral e grafite) nos dois modos, inclusive nos modais; categorias já personalizadas pelos usuários são preservadas.
+- 24 paletas, incluindo preto, cinza escuro, prata e grafite nos dois modos, inclusive nos modais; categorias já personalizadas pelos usuários são preservadas.
 - Receita e despesa com a mesma aparência inicial; destaque somente ao selecionar. Removidos o atalho flutuante de nova despesa, um link repetido de detalhes e o botão Salvar duplicado do formulário.
 - Microfone no cabeçalho de todas as telas autenticadas, com reconhecimento único e contexto da aba atual. Diga “despesa mercado 35,90 reais”, “salário 2000 reais”, “tema claro”, “tema escuro” ou “modo do sistema”. Lançamentos abrem o formulário para revisão; nenhuma transcrição é salva automaticamente.
 - A escuta aguarda seis segundos de pausa ou o botão Concluir fala. O parser reconhece valores por extenso, datas e repetição, preserva compras/recorrência e distingue valores decimais de parcelas. Resultados parciais não executam comandos, erros de microfone têm orientação e a escuta termina ao sair da tela. A voz depende do suporte e das permissões do navegador, que pode processar o áudio online.
@@ -63,7 +63,7 @@ Publicações manuais de commits de uma branch não fazem merge na `main`. Antes
 
 ## Aparência, ajuda e navegação
 
-- O botão com sol/lua no cabeçalho permite escolher claro/escuro/sistema e dez cores de destaque em uma lista com amostras. Em Configurações → Aparência, um menu suspenso mostra a cor selecionada e as dez opções. A escolha independe do modo, fica salva neste navegador e mantém as cores financeiras de status.
+- O botão com sol/lua no cabeçalho permite escolher claro/escuro/sistema e 24 cores de destaque em uma lista com amostras. Em Configurações → Aparência, um menu suspenso mostra a cor selecionada e as 24 opções. A escolha independe do modo, fica salva neste navegador e mantém as cores financeiras de status.
 - O início prioriza saldo, valores pendentes e últimos movimentos. Os detalhes do mês ficam recolhidos; as ações de receita/despesa são compactas.
 - O microfone no cabeçalho usa o contexto da tela. Na lista de compras, prepara um item; nas demais áreas, prepara um lançamento financeiro ou altera o tema. Sempre revise antes de confirmar. O navegador precisa suportar reconhecimento de voz e ter permissão para microfone.
 - A interrogação (?) abre um tutorial específico de cada página, com Voltar/Próximo/Concluir. Não altera dados e pode ser reaberto.
@@ -85,3 +85,5 @@ A integração combina uma tarefa com conclusão sincronizada e um evento vincul
 A ativação exige OAuth do Google e a migração das duas tabelas privadas. As credenciais ficam exclusivamente no servidor; tokens são criptografados. Consulte a [configuração e validação real da integração](docs/qa/google-agenda-setup.md). Testes simulados não comprovam consentimento nem acesso real à conta Google.
 
 O app também apresenta avisos de vencimento ao ser aberto, com deduplicação por conta/equipe/dia. Notificações do navegador exigem permissão. A troca de conta ou equipe limpa o contexto financeiro e ignora respostas antigas.
+
+A opção Preto aplica superfícies monocromáticas: branco/preto no modo claro e fundo preto no modo escuro, com texto e controles em contraste. As cores financeiras de status continuam identificáveis. O service worker preserva as rotas `/api/` para que callbacks OAuth cheguem ao servidor; `npm run test:pwa` verifica o build com o worker ativo.

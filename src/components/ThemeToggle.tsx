@@ -22,7 +22,7 @@ export function ThemeToggle() {
       <DropdownMenuLabel>Cor de destaque</DropdownMenuLabel>
       <DropdownMenuRadioGroup aria-label="Cor de destaque" className="max-h-56 overflow-y-auto overscroll-contain" value={accentColor} onValueChange={(value) => { if (isAccentColor(value)) setAccentColor(value); }}>
         {accentColors.map((color) => <DropdownMenuRadioItem key={color} value={color} className="min-h-11 gap-2 rounded-lg">
-          <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: `hsl(${accentPalettes[color][resolvedTheme]})` }} />
+          <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full border border-foreground/30" style={{ backgroundColor: color === 'black' ? '#111111' : `hsl(${accentPalettes[color][resolvedTheme]})` }} />
           {accentPalettes[color].label}
         </DropdownMenuRadioItem>)}
       </DropdownMenuRadioGroup>
