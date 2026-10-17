@@ -39,7 +39,7 @@ test('fala completa reconhece valor por extenso, data e repetição sem misturar
 
 
 test('quantidade, embalagem e preço unitário geram total sem confundir peso com unidades', () => {
- const packs = parseVoiceCommand('despesa 10 açúcares, 1 quilo cada, R$50 cada um à vista pago dia 10/11/2026', {preferredKind:'transaction'});
+ const packs = parseVoiceCommand('despesa dez açúcares, um quilo cada, cinquenta reais cada um à vista pago dia 10/11/2026', {preferredKind:'transaction'});
  assert.ok(packs?.kind === 'transaction'); assert.equal(packs.amount,500); assert.equal(packs.itemDetails?.quantity,10); assert.equal(packs.itemDetails?.unit,'un'); assert.equal(packs.itemDetails?.packageSize,'1 kg'); assert.equal(packs.categoryHint,'Alimentação'); assert.equal(packs.status,'completed'); assert.equal(packs.date,'2026-11-10');
  const kilos = parseVoiceCommand('10 quilos de açúcar 50 reais cada', {preferredKind:'shopping'});
  assert.ok(kilos?.kind === 'shopping'); assert.equal(kilos.quantity,10); assert.equal(kilos.unit,'kg'); assert.equal(kilos.estimatedPrice,50);

@@ -239,7 +239,7 @@ const parseShoppingQuantity = (normalized: string) => {
 export function parseVoiceItemDetails(transcript: string): VoiceItemDetails | undefined {
   let text = normalizeSpokenNumbers(transcript);
   text = text.replace(new RegExp(`\\b(${spokenPhrasePattern})\\s+(${unitPattern})\\b`, 'g'), (_m, n: string, u: string) => `${spokenNumber(n)} ${u}`)
-    .replace(new RegExp(`^(${spokenPhrasePattern})\\s+`, 'i'), (_m, n: string) => `${spokenNumber(n)} `);
+    .replace(new RegExp(`^((?:(?:despesa|comprar|comprei|adicionar)\\s+)?)(${spokenPhrasePattern})\\s+`, 'i'), (_m, prefix: string, n: string) => `${prefix}${spokenNumber(n)} `);
   const count = text.match(new RegExp(`(?:^|\\b(?:despesa|comprar|comprei|adicionar)\\s+)(\\d+(?:[,.]\\d+)?)\\s+(?:(${unitPattern})\\b)?`, 'i'));
   if (!count) return undefined;
   const quantity = parseNumericToken(count[1]);
