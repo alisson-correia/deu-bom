@@ -722,7 +722,7 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="space-y-3 p-5">
-              {user && <SpreadsheetImportPanel userId={user.id} workspaceId={currentWorkspace?.id || null} canImport={!currentWorkspace || userRole === 'owner' || userRole === 'editor'} />}
+              {user && <SpreadsheetImportPanel key={`${user.id}:${currentWorkspace?.id || "personal"}`} userId={user.id} workspaceId={currentWorkspace?.id || null} canImport={!currentWorkspace || userRole === 'owner' || userRole === 'editor'} />}
               {[
                 {
                   label: 'Exportar JSON',

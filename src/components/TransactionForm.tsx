@@ -190,9 +190,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     }
 
     if (!categoryId || selectedCategory?.type !== type) {
-      setCategoryId(filteredCategories[0].id);
+      setCategoryId(initialDraft && foodCategoryId ? foodCategoryId : filteredCategories[0].id);
     }
-  }, [categoryId, filteredCategories, selectedCategory?.type, type]);
+  }, [categoryId, filteredCategories, selectedCategory?.type, type, initialDraft, foodCategoryId]);
 
   useEffect(() => {
     if (editTransaction || !title.trim()) {

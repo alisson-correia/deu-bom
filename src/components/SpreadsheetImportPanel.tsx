@@ -105,7 +105,7 @@ export function SpreadsheetImportPanel({ userId, workspaceId, canImport }: { use
       <textarea id="spreadsheet-paste" value={text} onChange={(event) => setText(event.target.value)} disabled={saving} rows={5} className="my-2 w-full min-w-0 rounded-xl border border-input bg-background p-3 text-sm" placeholder={'Data;Descricao;Tipo;Valor\n2026-11-10;Mercado;Despesa;125,50'} />
       <button type="button" disabled={disabled || !text.trim()} onClick={() => review(text, 'Texto colado')} className="mb-3 min-h-11 rounded-xl border border-border px-3 text-sm disabled:opacity-50">Revisar texto colado</button>
     </details>
-    <DocumentImportAssistant key={assistantVersion} userId={userId} disabled={disabled} onReview={review} />
+    <DocumentImportAssistant key={assistantVersion} userId={userId} disabled={disabled} onReview={review} onInvalidate={()=>{setPreview([]);setSelected(new Set());setReceiptSource(undefined);setError('');}} />
     {error && <p role="alert" className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
     {preview.length > 0 && <div aria-label="Prévia da importação" className="mt-4 space-y-3">
       <div><h4 className="font-medium">Revise antes de importar</h4>{receiptSource && <p className="text-sm text-muted-foreground">Comprovante privado: {receiptSource.file.name}</p>}<p className="break-words text-sm text-muted-foreground">{source} · {preview.length} lançamentos · {duplicates} possíveis duplicados</p></div>
