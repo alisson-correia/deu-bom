@@ -11,7 +11,7 @@ export function ThemeToggle() {
         {resolvedTheme === 'dark' ? <Moon aria-hidden="true" className="h-5 w-5" /> : <Sun aria-hidden="true" className="h-5 w-5" />}
       </button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" className="w-60 max-w-[calc(100vw-1.5rem)] rounded-xl p-2">
+    <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] w-60 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-xl p-2">
       <DropdownMenuLabel>Modo de exibição</DropdownMenuLabel>
       <DropdownMenuRadioGroup aria-label="Modo de exibição" value={theme} onValueChange={(value) => setTheme(value as 'light' | 'dark' | 'system')}>
         <DropdownMenuRadioItem className="min-h-11" value="light"><Sun className="mr-2 h-4 w-4" />Claro</DropdownMenuRadioItem>
@@ -20,7 +20,7 @@ export function ThemeToggle() {
       </DropdownMenuRadioGroup>
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Cor de destaque</DropdownMenuLabel>
-      <DropdownMenuRadioGroup aria-label="Cor de destaque" className="grid grid-cols-2 gap-1" value={accentColor} onValueChange={(value) => { if (isAccentColor(value)) setAccentColor(value); }}>
+      <DropdownMenuRadioGroup aria-label="Cor de destaque" className="max-h-56 overflow-y-auto overscroll-contain" value={accentColor} onValueChange={(value) => { if (isAccentColor(value)) setAccentColor(value); }}>
         {accentColors.map((color) => <DropdownMenuRadioItem key={color} value={color} className="min-h-11 gap-2 rounded-lg">
           <span aria-hidden="true" className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: `hsl(${accentPalettes[color][resolvedTheme]})` }} />
           {accentPalettes[color].label}

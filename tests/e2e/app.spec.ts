@@ -167,12 +167,13 @@ test('páginas financeiras, compras e configurações não extrapolam a largura 
 });
 
 test('cores independentes do modo persistem e mantêm contraste em todas as paletas', async ({ page }) => {
+  test.setTimeout(60_000);
   await backend(page); await login(page);
   const primaryColor = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
   for (const mode of ['Claro', 'Escuro']) {
     await theme(page, mode);
     const seen = new Set<string>();
-    for (const [id, name] of [['blue', 'Azul'], ['green', 'Verde'], ['purple', 'Roxo'], ['pink', 'Rosa']]) {
+    for (const [id, name] of [['blue', 'Azul'], ['green', 'Verde'], ['purple', 'Roxo'], ['pink', 'Rosa'], ['indigo', 'Índigo'], ['teal', 'Turquesa'], ['cyan', 'Ciano'], ['orange', 'Laranja'], ['coral', 'Coral'], ['slate', 'Grafite']]) {
       await page.getByRole('button', { name: 'Alterar tema' }).click();
       await page.getByRole('menuitemradio', { name, exact: true }).click();
   await expect(page.getByRole('menu')).toHaveCount(0);
@@ -191,15 +192,18 @@ test('cores independentes do modo persistem e mantêm contraste em todas as pale
       for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-    expect(seen.size).toBe(4);
+    expect(seen.size).toBe(10);
   }
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-accent', 'pink');
+  await expect(page.locator('html')).toHaveAttribute('data-accent', 'slate');
   await expect(page.locator('html')).toHaveClass(/dark/);
   await page.goto('/settings');
   await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Aparência', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Rosa', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Azul', exact: true }).click();
+  const picker = page.getByRole('combobox', { name: 'Cor de destaque', exact: true });
+  await expect(picker).toContainText('Grafite');
+  await picker.click();
+  await expect(page.getByRole('option')).toHaveCount(10);
+  await page.getByRole('option', { name: 'Azul', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-accent', 'blue');
   await theme(page, 'Sistema');
   await page.emulateMedia({ colorScheme: 'light' });
@@ -362,7 +366,7 @@ test('configurações mostram uma seção por vez e perfil é acessível sem cob
     await sections.getByRole('button', { name, exact: true }).click();
     await expect(sections.getByRole('button', { name, exact: true })).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (name === 'Aparência') await expect(page.getByRole('button', { name: 'Rosa', exact: true })).toBeVisible();
+    if (name === 'Aparência') await expect(page.getByRole('combobox', { name: 'Cor de destaque', exact: true })).toBeVisible();
     if (name === 'Dados') await expect(page.getByRole('button', { name: /Exportar JSON/ })).toBeVisible();
   }
 });
