@@ -5,8 +5,34 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!.*\\..*).*)",
+      "source": "/((?!api(?:/|$)|.*\\..*).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "installCommand": "npm ci --ignore-scripts && npm rebuild esbuild @swc/core",
+  "functions": {
+    "api/google/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }

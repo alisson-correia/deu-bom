@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Dialog, DialogClose, DialogDescription, DialogOverlay, DialogPortal, DialogTitle } from '@/components/ui/dialog';
 import { X, User, Mail, Loader2, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { getErrorMessage } from '@/utils/errors';
@@ -34,7 +35,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
   }, [initialName, initialEmail, isOpen]);
 
   const handleSave = async () => {
-    if (!userId) return;
+    if (!userId || isSaving) return;
     
     setIsSaving(true);
     try {
@@ -61,94 +62,35 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.98 }}
-          transition={{ type: 'spring', damping: 24, stiffness: 280 }}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-t-3xl bg-card sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-[min(30rem,calc(100vw-1.5rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3 sm:px-5">
-            <div className="flex items-center gap-3">
-              <User className="w-5 h-5 text-primary" />
-              <h2 className="text-base font-semibold sm:text-lg">
-                {isOwnProfile ? 'Editar Meu Perfil' : 'Editar Membro'}
-              </h2>
+  return <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isSaving) onClose(); }}>
+    <DialogPortal>
+      <DialogOverlay className="z-[110]" />
+      <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[120] max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-xl">
+        <DialogTitle className="pr-10 text-lg font-semibold">{isOwnProfile ? 'Editar meu perfil' : 'Editar membro'}</DialogTitle>
+        <DialogDescription className="mt-2 pr-6 text-sm text-muted-foreground">Confira os dados antes de salvar.</DialogDescription>
+        <DialogClose asChild><button type="button" disabled={isSaving} aria-label="Fechar edição de perfil" className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-xl hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"><X aria-hidden="true" className="h-5 w-5" /></button></DialogClose>
+        <form className="mt-5 space-y-4" onSubmit={(event) => { event.preventDefault(); void handleSave(); }}>
+          <div>
+            <label htmlFor="profile-name" className="mb-2 block text-sm font-medium">Nome</label>
+            <div className="relative">
+              <User aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input id="profile-name" type="text" value={displayName} disabled={isSaving} onChange={(event) => setDisplayName(event.target.value)} placeholder="Seu nome" required className="min-h-11 w-full rounded-xl border border-border bg-input py-3 pl-10 pr-3 text-base text-foreground" />
             </div>
-            <button
-              onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
-
-          {/* Content */}
-          <div className="space-y-4 p-4 sm:p-5">
-            <div>
-              <label className="block text-sm font-medium mb-2">Nome</label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
+          <div>
+            <label htmlFor="profile-email" className="mb-2 block text-sm font-medium">Email</label>
+            <div className="relative">
+              <Mail aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input id="profile-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={isOwnProfile || isSaving} placeholder="email@exemplo.com" className="min-h-11 w-full rounded-xl border border-border bg-input py-3 pl-10 pr-3 text-base text-foreground disabled:opacity-60" />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2">Email</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@exemplo.com"
-                  disabled={isOwnProfile}
-                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground disabled:opacity-50"
-                />
-              </div>
-              {isOwnProfile && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Para alterar o email, use a opção de recuperação de senha
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !displayName.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {isSaving ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <Check className="w-5 h-5" />
-                  Salvar Alterações
-                </>
-              )}
-            </button>
+            {isOwnProfile && <p className="mt-2 text-xs leading-5 text-muted-foreground">O email da conta não pode ser alterado por este formulário.</p>}
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
+          <button type="submit" disabled={isSaving || !displayName.trim()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+            {isSaving ? <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" /> : <Check aria-hidden="true" className="h-4 w-4" />}
+            {isSaving ? 'Salvando…' : 'Salvar alterações'}
+          </button>
+        </form>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  </Dialog>;
 };

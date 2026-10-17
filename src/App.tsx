@@ -2,12 +2,17 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { FinanceScopeProvider, FinanceScopedRoutes } from "@/components/FinanceScopeProvider";
+import { GoogleIntegrationProvider } from "@/hooks/useGoogleIntegration";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallHint } from "@/components/PWAInstallHint";
+import { AppToolbar } from "@/components/AppToolbar";
+import { VoiceProvider } from "@/components/VoiceProvider";
+import More from "./pages/More";
 import { PWAUpdateNotice } from "@/components/PWAUpdateNotice";
 import { PendingNotifications } from "@/components/PendingNotifications";
 import Dashboard from "./pages/Dashboard";
@@ -32,13 +37,17 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <WorkspaceProvider>
+            <FinanceScopeProvider>
+            <GoogleIntegrationProvider>
             <Toaster />
             <Sonner position="top-center" />
             <PWAInstallHint />
             <PWAUpdateNotice />
             <PendingNotifications />
             <BrowserRouter>
-              <Routes>
+              <VoiceProvider>
+              <AppToolbar />
+              <FinanceScopedRoutes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/confirm" element={<AuthConfirm />} />
               <Route path="/accept-invite" element={<AcceptInvite />} />
@@ -101,9 +110,13 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/more" element={<ProtectedRoute><More /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
+            </FinanceScopedRoutes>
+              </VoiceProvider>
           </BrowserRouter>
+            </GoogleIntegrationProvider>
+            </FinanceScopeProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </TooltipProvider>

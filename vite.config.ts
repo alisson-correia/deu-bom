@@ -1,16 +1,31 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)).flatMap((entry) => entry.isDirectory() ? files(path.join(dir, entry.name)) : [path.join(dir, entry.name)]);
+const hash = createHash('sha256');
+for (const file of [...files(path.resolve('src')), 'index.html', 'package-lock.json']) hash.update(file.replace(process.cwd(), '')).update(readFileSync(file));
+const appVersion = hash.digest('hex').slice(0, 16);
+const versionBody = JSON.stringify({ version: appVersion });
+const appVersionPlugin = {
+  name: 'app-version',
+  generateBundle() { this.emitFile({ type: 'asset', fileName: 'version.json', source: versionBody }); },
+  configureServer(server) { server.middlewares.use('/version.json', (_req, res) => { res.setHeader('Content-Type', 'application/json'); res.setHeader('Cache-Control', 'no-store'); res.end(versionBody); }); },
+};
+
 export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   server: {
     host: "::",
     port: 8080,
   },
   plugins: [
     react(),
+    appVersionPlugin,
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "prompt",
@@ -20,8 +35,8 @@ export default defineConfig(({ mode }) => ({
         name: "Deu Bom Financas sem Erro",
         short_name: "Deu Bom",
         description: "Gerencie suas financas pessoais e eventos com experiencia de app.",
-        theme_color: "#141820",
-        background_color: "#141820",
+        theme_color: "#15131b",
+        background_color: "#15131b",
         display: "standalone",
         display_override: ["standalone", "minimal-ui"],
         orientation: "portrait-primary",
@@ -46,19 +61,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "supabase-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-            },
-          },
-        ],
+        runtimeCaching: [],
       },
     }),
   ].filter(Boolean),

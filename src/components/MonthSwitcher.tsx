@@ -17,6 +17,7 @@ export const MonthSwitcher = ({
     <div className={`flex items-center justify-between ${className}`.trim()}>
       <button
         onClick={() => onChange(-1)}
+        aria-label="Mês anterior"
         className="touch-btn h-11 w-11 rounded-full border border-border/60 bg-card/70 text-foreground"
       >
         <ChevronDown className="h-5 w-5 rotate-90" />
@@ -26,6 +27,7 @@ export const MonthSwitcher = ({
       </span>
       <button
         onClick={() => onChange(1)}
+        aria-label="Próximo mês"
         className="touch-btn h-11 w-11 rounded-full border border-border/60 bg-card/70 text-foreground"
       >
         <ChevronDown className="h-5 w-5 -rotate-90" />

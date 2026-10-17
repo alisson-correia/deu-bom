@@ -158,8 +158,11 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         draggable={draggable}
         onDragStart={(event) => {
           didDragRef.current = true;
-          event.dataTransfer.effectAllowed = 'move';
-          event.dataTransfer.setData('text/plain', transaction.id);
+          if ('dataTransfer' in event) {
+            const dragEvent = event as unknown as React.DragEvent<HTMLDivElement>;
+            dragEvent.dataTransfer.effectAllowed = 'move';
+            dragEvent.dataTransfer.setData('text/plain', transaction.id);
+          }
           onDragStart?.(transaction);
         }}
         onDragEnd={() => {
@@ -180,7 +183,8 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         {/* Delete background */}
         <div 
           className="absolute inset-y-0 right-0 bg-destructive flex items-center justify-center rounded-xl"
-          style={{ width: swipeOffset + 20 }}
+          aria-hidden="true"
+          style={{ width: swipeOffset > 0 ? swipeOffset + 20 : 0, opacity: swipeOffset > 0 ? 1 : 0 }}
         >
           <Trash2 className="w-5 h-5 text-destructive-foreground" />
         </div>
@@ -234,7 +238,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <div className="min-w-0">
                   <h4 className="truncate text-sm font-medium text-foreground">
                     {transaction.title}
@@ -252,7 +256,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-left sm:text-right flex-shrink-0">
                     <p
                       className={`
                         font-mono ${compact ? 'text-xs' : 'text-sm'} font-semibold
@@ -269,8 +273,9 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
 
                   <button
                     onClick={handleDeleteClick}
-                    className="ml-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full opacity-0 transition-all hover:bg-destructive/10 group-hover:opacity-100 sm:opacity-40"
+                    className="ml-1 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10"
                     title="Excluir"
+                    aria-label={`Excluir ${transaction.title}`}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                   </button>

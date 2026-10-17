@@ -1482,7 +1482,7 @@ const Leisure: React.FC = () => {
                           onClick={() => removeCalculatedItem(index)}
                           className="p-2 rounded-lg hover:bg-muted"
                         >
-                          <Trash2 className="w-4 h-4 text-expense" />
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </button>
                       </div>
                     </div>
@@ -1951,18 +1951,18 @@ const Leisure: React.FC = () => {
                                   onClick={() => toggleParticipantPaid(participant)}
                                   disabled={!canEdit}
                                   className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                                    participant.paid ? 'bg-income/10' : 'bg-muted'
+                                    participant.paid ? 'bg-primary/10' : 'bg-muted'
                             } ${!canEdit ? 'cursor-not-allowed opacity-50' : ''}`}
                             title={canEdit ? 'Alterar pagamento' : 'Somente editores podem alterar pagamento'}
                                 >
-                                  <Check className={`h-4 w-4 ${participant.paid ? 'text-income' : 'text-muted-foreground'}`} />
+                                  <Check className={`h-4 w-4 ${participant.paid ? 'text-primary' : 'text-muted-foreground'}`} />
                                 </button>
                                 {canEdit && (
                                   <button
                                     onClick={() => removeParticipant(participant.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-expense/10"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10"
                             >
-                              <Trash2 className="h-4 w-4 text-expense" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </button>
                           )}
                         </div>
@@ -2034,9 +2034,9 @@ const Leisure: React.FC = () => {
                           {canEdit && (
                             <button
                               onClick={() => removeItem(item.id)}
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-expense/10"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10"
                             >
-                              <Trash2 className="h-4 w-4 text-expense" />
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </button>
                           )}
                         </div>
@@ -2059,7 +2059,7 @@ const Leisure: React.FC = () => {
                   <div className="space-y-3">
                     <button
                       onClick={() => deleteEvent(selectedEvent.id)}
-                      className="w-full py-4 rounded-xl bg-expense/10 text-expense font-medium border border-expense/20"
+                      className="w-full py-4 rounded-xl bg-destructive/10 text-destructive font-medium border border-destructive/20"
                     >
                       Excluir Evento Atual
                     </button>
@@ -2393,7 +2393,7 @@ const Leisure: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-semibold">{formatCurrency(item.total)}</p>
                               <button type="button" onClick={() => removeCalculatedItem(index)}>
-                                <Trash2 className="h-4 w-4 text-expense" />
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </button>
                             </div>
                           </div>

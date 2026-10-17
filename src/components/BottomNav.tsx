@@ -9,6 +9,7 @@ import {
   PartyPopper,
   PiggyBank,
   Settings,
+  Grid2X2,
   ShoppingCart,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -16,56 +17,43 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const navItems = [
-  { to: '/', icon: Home, label: 'Inicio' },
-  { to: '/transactions', icon: KanbanSquare, label: 'Financas' },
+  { to: '/', icon: Home, label: 'Início' },
+  { to: '/transactions', icon: KanbanSquare, label: 'Finanças' },
   { to: '/shopping-list', icon: ShoppingCart, label: 'Lista' },
-  { to: '/festometro', icon: PartyPopper, label: 'Festometro' },
+  { to: '/festometro', icon: PartyPopper, label: 'Festômetro' },
   { to: '/budgets', icon: PiggyBank, label: 'Metas' },
-  { to: '/analytics', icon: BarChart3, label: 'Dashboard' },
-  { to: '/settings', icon: Settings, label: 'Config' },
+  { to: '/analytics', icon: BarChart3, label: 'Análise' },
+  { to: '/settings', icon: Settings, label: 'Configurações' },
 ];
 
-const mobileNavItems = navItems.filter(
-  (item) => item.to !== '/budgets' && item.to !== '/analytics'
-);
+const mobileNavItems = [
+  ...navItems.filter((item) => ['/', '/transactions', '/shopping-list', '/festometro'].includes(item.to)),
+  { to: '/more', icon: Grid2X2, label: 'Mais' },
+];
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
-  const [isHovered, setIsHovered] = React.useState(false);
   const [isPinned, setIsPinned] = React.useState(false);
-  const asideRef = React.useRef<HTMLElement | null>(null);
-  const isExpanded = !isMobile && (isHovered || isPinned);
+  const isExpanded = !isMobile && isPinned;
 
-  React.useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    const sidebarWidth = isMobile ? '0px' : '88px';
-    const bottomNavHeight = isMobile ? '84px' : '0px';
-    document.documentElement.style.setProperty('--app-sidebar-width', sidebarWidth);
-    document.documentElement.style.setProperty('--app-bottom-nav-height', bottomNavHeight);
-
-    return () => {
-      document.documentElement.style.setProperty('--app-sidebar-width', '88px');
-      document.documentElement.style.setProperty('--app-bottom-nav-height', '0px');
-    };
-  }, [isMobile]);
 
   return (
     <>
       {isMobile ? (
         <nav
-          className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/70 bg-card/95 px-2 pb-[calc(0.35rem+env(safe-area-inset-bottom,0px))] pt-2 backdrop-blur-xl md:hidden"
-          aria-label="Navegacao principal"
+          className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/70 bg-card/95 px-2 pb-[calc(0.35rem+env(safe-area-inset-bottom,0px))] pt-2 backdrop-blur-xl xl:hidden"
+          aria-label="Navegação principal"
         >
           <div className="grid grid-cols-5 gap-1">
             {mobileNavItems.map((item) => {
-              const isActive = location.pathname === item.to;
+              const isActive = location.pathname === item.to || (item.to === '/more' && ['/budgets', '/analytics', '/settings'].includes(location.pathname));
 
               return (
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  aria-label={item.label}
                   className={cn(
                     'flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[11px] font-medium transition-colors',
                     isActive
@@ -83,21 +71,12 @@ export const BottomNav: React.FC = () => {
       ) : null}
 
       <aside
-        ref={asideRef}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onFocusCapture={() => setIsHovered(true)}
-        onBlurCapture={(event) => {
-          const nextTarget = event.relatedTarget as Node | null;
-          if (nextTarget && asideRef.current?.contains(nextTarget)) return;
-          setIsHovered(false);
-        }}
         className={cn(
-          'fixed inset-y-0 left-0 z-[60] hidden flex-col overflow-hidden border-r border-border/70 bg-card/96 pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl transition-[width,box-shadow] duration-200 md:flex',
+          'fixed inset-y-0 left-0 z-[60] hidden flex-col overflow-hidden border-r border-border/70 bg-card/96 pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] backdrop-blur-xl transition-[width,box-shadow] duration-200 xl:flex',
           isExpanded ? 'w-[272px] shadow-[var(--shadow-lg)]' : 'w-[88px] shadow-[var(--shadow-md)]'
         )}
       >
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-4">
+        <div className={cn("flex border-b border-border/60 py-3", isExpanded ? "items-center justify-between px-4" : "flex-col items-center gap-2 px-3")}>
           <div
             className={cn(
               'flex items-center gap-3 overflow-hidden transition-all',
@@ -115,7 +94,8 @@ export const BottomNav: React.FC = () => {
 
           <button
             onClick={() => setIsPinned((current) => !current)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+            aria-expanded={isExpanded}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
             aria-label={isPinned ? 'Desafixar sidebar' : 'Fixar sidebar aberta'}
           >
             {isExpanded ? (
@@ -126,7 +106,7 @@ export const BottomNav: React.FC = () => {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav aria-label="Navegação principal desktop" className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
             const isActive = location.pathname === item.to;
 
@@ -134,6 +114,7 @@ export const BottomNav: React.FC = () => {
               <NavLink
                 key={item.to}
                 to={item.to}
+                aria-label={item.label}
                 className={cn(
                   'relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-3 text-sm transition-colors',
                   isActive ? 'text-primary' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',

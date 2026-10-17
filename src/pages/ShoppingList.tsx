@@ -3,15 +3,13 @@ import { motion } from 'framer-motion';
 import {
   Check,
   Loader2,
-  Mic,
-  MicOff,
   Plus,
   ShoppingCart,
   Trash2,
 } from 'lucide-react';
 import { BottomNav } from '@/components/BottomNav';
 import { EmptyState } from '@/components/EmptyState';
-import { useVoiceCommand } from '@/hooks/useVoiceCommand';
+import { usePageVoice } from '@/components/VoiceProvider';
 import { parseVoiceCommand } from '@/services/voiceCommandParser';
 import type { ShoppingListItem } from '@/types/shopping';
 import { formatCurrency } from '@/utils/currency';
@@ -168,7 +166,7 @@ const ShoppingList: React.FC = () => {
     setVoicePrompt('');
   };
 
-  const { isListening, lastTranscript, startListening, stopListening } = useVoiceCommand({
+  const { isListening, lastTranscript } = usePageVoice({
     onTranscript: handleVoiceTranscript,
   });
 
@@ -211,32 +209,17 @@ const ShoppingList: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] md:pl-[var(--app-sidebar-width,88px)]">
+    <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] xl:pl-[var(--app-sidebar-width,88px)]">
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl rounded-2xl border border-border/60 bg-card/90 p-4 shadow-[var(--shadow-sm)]">
+        <div className="mx-auto max-w-4xl py-1">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Lista de compras
-              </p>
-              <h1 className="text-xl font-semibold sm:text-2xl">Mercado sem esquecer nada</h1>
+              <h1 className="text-xl font-semibold sm:text-2xl">Lista de compras</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Anote itens, quantidades e previsao de gasto.
+                Itens, quantidades e previsão de gasto.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={isListening ? stopListening : startListening}
-              className={cn(
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors',
-                isListening
-                  ? 'bg-expense text-expense-foreground'
-                  : 'bg-primary text-primary-foreground'
-              )}
-              aria-label={isListening ? 'Parar gravacao' : 'Adicionar por voz'}
-            >
-              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-            </button>
+
           </div>
 
           {isListening || lastTranscript ? (
@@ -278,7 +261,7 @@ const ShoppingList: React.FC = () => {
                           current ? { ...current, name: event.target.value } : current
                         )
                       }
-                      className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+                      className="mt-1 min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                     />
                   </label>
 
@@ -294,7 +277,7 @@ const ShoppingList: React.FC = () => {
                             current ? { ...current, quantity: Number(event.target.value) } : current
                           )
                         }
-                        className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+                        className="mt-1 min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                       />
                     </label>
 
@@ -308,7 +291,7 @@ const ShoppingList: React.FC = () => {
                             current ? { ...current, unit: event.target.value } : current
                           )
                         }
-                        className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+                        className="mt-1 min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                       />
                     </label>
 
@@ -327,7 +310,7 @@ const ShoppingList: React.FC = () => {
                               : current
                           )
                         }
-                        className="mt-1 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
+                        className="mt-1 min-h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground"
                       />
                     </label>
                   </div>
@@ -342,7 +325,7 @@ const ShoppingList: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSaveVoiceDraft}
-                    className="h-10 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
+                    className="min-h-11 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
                   >
                     Confirmar e adicionar
                   </button>

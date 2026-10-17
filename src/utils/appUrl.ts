@@ -15,12 +15,7 @@ export const getPublicAppUrl = () => {
   if (configuredUrl) return configuredUrl;
 
   if (typeof window !== 'undefined') {
-    const currentOrigin = window.location.origin;
-    const isLocal =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1';
-
-    if (isLocal) return currentOrigin;
+    return window.location.origin;
   }
 
   return DEFAULT_PUBLIC_APP_URL;

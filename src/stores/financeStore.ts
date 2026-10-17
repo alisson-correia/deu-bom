@@ -19,9 +19,9 @@ import {
 } from '@/utils/transactionSeries';
 
 const defaultCategories: Omit<Category, 'id'>[] = [
-  { name: 'Salario', icon: 'Wallet', color: '#22c55e', type: 'income' },
-  { name: 'Freelance', icon: 'Briefcase', color: '#10b981', type: 'income' },
-  { name: 'Investimentos', icon: 'TrendingUp', color: '#14b8a6', type: 'income' },
+  { name: 'Salario', icon: 'Wallet', color: '#4b70b9', type: 'income' },
+  { name: 'Freelance', icon: 'Briefcase', color: '#7560bb', type: 'income' },
+  { name: 'Investimentos', icon: 'TrendingUp', color: '#9370c4', type: 'income' },
   { name: 'Outros', icon: 'Plus', color: '#06b6d4', type: 'income' },
   { name: 'Alimentacao', icon: 'Utensils', color: '#f97316', type: 'expense' },
   { name: 'Transporte', icon: 'Car', color: '#eab308', type: 'expense' },
@@ -50,6 +50,10 @@ interface FinanceSnapshot {
 interface FinanceState extends FinanceSnapshot {
   loading: boolean;
   initialized: boolean;
+  loadError: string | null;
+  snapshotGeneration: number;
+  scopeReady: boolean;
+  resetScope: (ready?: boolean) => void;
 
   initialize: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -209,11 +213,12 @@ const resolveSeriesInterval = (
   return transaction.recurrenceType === 'installment' ? 'monthly' : 'monthly';
 };
 
-const loadFinanceSnapshot = async (): Promise<FinanceSnapshot | null> => {
+const loadFinanceSnapshot = async (isCurrent: () => boolean): Promise<FinanceSnapshot | null> => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!isCurrent()) return null;
   if (!user) {
     return {
       transactions: [],
@@ -223,12 +228,14 @@ const loadFinanceSnapshot = async (): Promise<FinanceSnapshot | null> => {
     };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
 
+  if (!isCurrent()) return null;
+  if (profileError) throw profileError;
   const workspaceId = profile?.current_workspace_id;
 
   let categoriesQuery = supabase.from('categories').select('*');
@@ -248,7 +255,10 @@ const loadFinanceSnapshot = async (): Promise<FinanceSnapshot | null> => {
     budgetsQuery = budgetsQuery.eq('user_id', user.id).is('workspace_id', null);
   }
 
-  let { data: categories } = await categoriesQuery;
+  const categoryResult = await categoriesQuery;
+  if (!isCurrent()) return null;
+  if (categoryResult.error) throw categoryResult.error;
+  let categories = categoryResult.data;
 
   if (!categories || categories.length === 0) {
     const categoriesToInsert = defaultCategories.map((category) => ({
@@ -296,6 +306,7 @@ const applySnapshot = (
 ) => {
   set({
     ...snapshot,
+    loadError: null,
     loading: false,
     initialized: true,
   });
@@ -318,6 +329,8 @@ const getFinanceErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const initializeRequests = new Map<number, Promise<void>>();
+
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   transactions: [],
   categories: [],
@@ -325,35 +338,62 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   settings: defaultSettings,
   loading: true,
   initialized: false,
+  loadError: null,
+  snapshotGeneration: 0,
+  scopeReady: true,
+
+  resetScope: (ready = true) => {
+    set({
+      snapshotGeneration: get().snapshotGeneration + 1,
+      scopeReady: ready,
+      transactions: [],
+      categories: [],
+      budgets: [],
+      settings: { ...defaultSettings },
+      initialized: false,
+      loading: true,
+      loadError: null,
+    });
+  },
 
   initialize: async () => {
-    set({ loading: true });
-
-    try {
-      const snapshot = await loadFinanceSnapshot();
-
-      if (snapshot) {
-        applySnapshot(set, snapshot);
-      } else {
-        set({ loading: false, initialized: true });
+    if (!get().scopeReady) return;
+    const generation = get().snapshotGeneration;
+    const existing = initializeRequests.get(generation);
+    if (existing) return existing;
+    const isCurrent = () => get().snapshotGeneration === generation && get().scopeReady;
+    set({ loading: true, loadError: null });
+    const operation = (async () => {
+      try {
+        const snapshot = await loadFinanceSnapshot(isCurrent);
+        if (!isCurrent()) return;
+        if (snapshot) applySnapshot(set, snapshot);
+        else set({ loading: false, initialized: true });
+      } catch (error) {
+        if (!isCurrent()) return;
+        console.error('Failed to initialize finance store:', error);
+        toast.error(getFinanceErrorMessage(error, 'Nao foi possivel carregar seus dados financeiros.'));
+        set({ loading: false, initialized: true, loadError: 'Não foi possível carregar seus dados. Tente novamente.' });
+      } finally {
+        initializeRequests.delete(generation);
       }
-    } catch (error) {
-      console.error('Failed to initialize finance store:', error);
-      toast.error(getFinanceErrorMessage(error, 'Nao foi possivel carregar seus dados financeiros.'));
-      set({ loading: false, initialized: true });
-    }
+    })();
+    initializeRequests.set(generation, operation);
+    return operation;
   },
 
   refreshData: async () => {
+    if (!get().scopeReady) return;
+    const generation = get().snapshotGeneration;
+    const isCurrent = () => get().snapshotGeneration === generation && get().scopeReady;
     try {
-      const snapshot = await loadFinanceSnapshot();
-
-      if (snapshot) {
-        applySnapshot(set, snapshot);
-      }
+      const snapshot = await loadFinanceSnapshot(isCurrent);
+      if (snapshot && isCurrent()) applySnapshot(set, snapshot);
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('Failed to refresh finance data:', error);
       toast.error(getFinanceErrorMessage(error, 'Nao foi possivel sincronizar os dados.'));
+      set({ loadError: 'Não foi possível atualizar. Os dados exibidos podem estar desatualizados.' });
     }
   },
 

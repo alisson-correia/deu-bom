@@ -4,9 +4,6 @@ import {
   CalendarDays,
   Filter,
   Loader2,
-  Mic,
-  MicOff,
-  Plus,
   Search,
   WalletCards,
 } from 'lucide-react';
@@ -30,7 +27,7 @@ import {
 import { formatCurrency } from '@/utils/currency';
 import type { Transaction, TransactionType } from '@/types/finance';
 import { toast } from 'sonner';
-import { useVoiceCommand } from '@/hooks/useVoiceCommand';
+import { usePageVoice } from '@/components/VoiceProvider';
 import { parseVoiceCommand } from '@/services/voiceCommandParser';
 
 type ColumnId = 'pay' | 'receive' | 'done';
@@ -223,7 +220,7 @@ const Transactions: React.FC = () => {
       title: command.title,
       amount: command.amount,
       type: command.type,
-      date: getDateFromDayOfMonth(command.dayOfMonth),
+      date: command.date || getDateFromDayOfMonth(command.dayOfMonth),
       recurrenceType: command.recurrenceType,
       installmentCount: command.installmentCount || 2,
       dayOfMonth: command.dayOfMonth,
@@ -290,7 +287,7 @@ const Transactions: React.FC = () => {
     }
   };
 
-  const { isListening, lastTranscript, startListening, stopListening } = useVoiceCommand({
+  const { isListening, lastTranscript } = usePageVoice({
     onTranscript: (transcript) => {
       void handleVoiceTranscript(transcript);
     },
@@ -390,42 +387,30 @@ const Transactions: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] md:pl-[var(--app-sidebar-width,88px)]">
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-3 py-2 backdrop-blur-xl sm:px-6 lg:px-8 lg:py-3">
-        <div className="mx-auto max-w-7xl rounded-2xl border border-border/60 bg-card/90 p-3 shadow-[var(--shadow-sm)] sm:p-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] xl:pl-[var(--app-sidebar-width,88px)]">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-3 py-2 backdrop-blur-xl sm:px-6 xl:px-8 xl:py-3">
+        <div className="mx-auto max-w-7xl py-1">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-lg">
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                Financas
-              </p>
-              <h1 className="text-xl font-semibold sm:text-2xl">Organize seus lancamentos</h1>
+              <h1 className="text-xl font-semibold sm:text-2xl">Finanças</h1>
               <p className="mt-1 hidden text-sm text-muted-foreground sm:block">
-                Pague, receba, confirme e ajuste o mes sem poluir a tela.
+                Receitas, despesas e pendências do mês.
               </p>
             </div>
 
-            <div className="grid grid-cols-[auto_1fr_1fr] gap-2 sm:flex">
-              <button
-                type="button"
-                onClick={isListening ? stopListening : startListening}
-                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
-                  isListening
-                    ? 'bg-expense text-expense-foreground'
-                    : 'border border-border bg-background text-foreground hover:bg-muted/50'
-                }`}
-                aria-label={isListening ? 'Parar gravacao' : 'Adicionar lancamento por voz'}
-              >
-                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              </button>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+
               <button
                 onClick={() => openForm('income')}
-                className="rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                aria-pressed={isFormOpen && defaultType === 'income'}
+                className="new-transaction-button min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
               >
                 Nova receita
               </button>
               <button
                 onClick={() => openForm('expense')}
-                className="rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                aria-pressed={isFormOpen && defaultType === 'expense'}
+                className="new-transaction-button min-h-11 rounded-xl border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
               >
                 Nova despesa
               </button>
@@ -610,7 +595,7 @@ const Transactions: React.FC = () => {
             className="mt-4"
           />
 
-          <div className="mt-3 grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="mt-3 grid gap-2 xl:grid-cols-[minmax(0,1fr)_auto]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -631,7 +616,7 @@ const Transactions: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+            <div className="flex gap-2 overflow-x-auto pb-1 xl:pb-0">
               <div className="min-w-[112px] rounded-xl border border-border bg-background px-3 py-2">
                 <p className="text-[11px] text-muted-foreground">Entradas</p>
                 <p className="mt-0.5 text-sm font-semibold text-income">
@@ -663,7 +648,7 @@ const Transactions: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-3 lg:hidden">
+          <div className="mt-3 xl:hidden">
             <button
               type="button"
               onClick={() => setShowCyclePicker((current) => !current)}
@@ -709,7 +694,7 @@ const Transactions: React.FC = () => {
             </AnimatePresence>
           </div>
 
-          <div className="mt-3 hidden rounded-xl border border-border/60 bg-background/70 px-3 py-2 lg:block">
+          <div className="mt-3 hidden rounded-xl border border-border/60 bg-background/70 px-3 py-2 xl:block">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-foreground">Dia de vencimento do ciclo</p>
@@ -737,7 +722,7 @@ const Transactions: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-6 lg:space-y-5 lg:px-8 lg:py-5">
+      <main className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-6 xl:space-y-5 xl:px-8 xl:py-5">
         <AnimatePresence>
           {showFilters && (
             <motion.section
@@ -761,7 +746,7 @@ const Transactions: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid gap-2 lg:grid-cols-[1fr_1fr_180px]">
+              <div className="grid gap-2 xl:grid-cols-[1fr_1fr_180px]">
                 <div className="flex gap-1 rounded-xl bg-muted/50 p-1">
                   {(['all', 'income', 'expense'] as const).map((type) => (
                     <button
@@ -837,7 +822,7 @@ const Transactions: React.FC = () => {
           </motion.div>
         ) : (
           <>
-            <section className="space-y-2 lg:hidden">
+            <section className="space-y-2 xl:hidden">
               <div className="flex items-center justify-between gap-3 px-1">
                 <div>
                   <p className="text-sm font-semibold text-foreground">Lancamentos do mes</p>
@@ -859,7 +844,7 @@ const Transactions: React.FC = () => {
               </div>
             </section>
 
-            <section className="hidden gap-3 pb-2 lg:grid lg:grid-cols-3 lg:overflow-visible">
+            <section className="hidden gap-3 pb-2 xl:grid xl:grid-cols-3 xl:overflow-visible">
               {kanbanColumns.map((column, index) => (
                 <motion.div
                   key={column.id}
@@ -935,16 +920,6 @@ const Transactions: React.FC = () => {
           </>
         )}
       </main>
-
-      <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => openForm('expense')}
-        className="fixed bottom-6 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-      >
-        <Plus className="h-6 w-6" />
-      </motion.button>
 
       <BottomNav />
 

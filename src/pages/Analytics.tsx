@@ -301,7 +301,7 @@ const Analytics: React.FC = () => {
             label="Tipo"
             value={typeFilter}
             options={typeOptions}
-            onChange={setTypeFilter}
+            onChange={(value) => setTypeFilter(value as 'all' | TransactionType)}
           />
 
           <SelectFilter
@@ -309,7 +309,7 @@ const Analytics: React.FC = () => {
             label="Status"
             value={statusFilter}
             options={statusOptions}
-            onChange={setStatusFilter}
+            onChange={(value) => setStatusFilter(value as AnalyticsStatusFilter)}
           />
 
           <SelectFilter

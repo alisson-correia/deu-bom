@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { getPublicAppUrl } from '@/utils/appUrl';
@@ -62,8 +62,29 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
   // Use ref to track if we've already loaded to prevent infinite loops
   const hasLoadedRef = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
+  const userEpochRef = useRef(0);
+  const workspaceRequestRef = useRef(0);
+  const detailsRequestRef = useRef(0);
+  const userId = user?.id;
+
+  useLayoutEffect(() => {
+    userEpochRef.current += 1;
+    currentUserIdRef.current = userId ?? null;
+    hasLoadedRef.current = false;
+    setCurrentWorkspace(null);
+    setWorkspaces([]);
+    setMembers([]);
+    setInvitations([]);
+    setUserRole(null);
+    setLoading(authLoading || Boolean(userId));
+    return () => { userEpochRef.current += 1; currentUserIdRef.current = null; };
+  }, [userId, authLoading]);
 
   const loadWorkspaceDetails = useCallback(async (workspaceId: string, workspacesList: Workspace[], userId: string) => {
+    const epoch = userEpochRef.current;
+    const requestId = ++detailsRequestRef.current;
+    const isCurrent = () => currentUserIdRef.current === userId && userEpochRef.current === epoch && detailsRequestRef.current === requestId;
+    if (!isCurrent()) return;
     try {
       // Load members
       const { data: membersData, error: membersError } = await supabase
@@ -71,6 +92,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         .select('*')
         .eq('workspace_id', workspaceId);
 
+      if (!isCurrent()) return;
       if (membersError) {
         console.error('[Workspace] Error loading members:', membersError);
       }
@@ -84,6 +106,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
           .from('profiles')
           .select('id, email, display_name')
           .in('id', memberIds);
+        if (!isCurrent()) return;
         profiles = profilesData || [];
       }
 
@@ -115,6 +138,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         .select('*')
         .eq('workspace_id', workspaceId);
 
+      if (!isCurrent()) return;
       if (invError) {
         console.error('[Workspace] Error loading invitations:', invError);
       }
@@ -130,12 +154,18 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
       setInvitations(formattedInvitations);
       setLoading(false);
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('[Workspace] Failed to load workspace details:', error);
       setLoading(false);
     }
   }, []);
 
   const loadWorkspaces = useCallback(async (userId: string) => {
+    const epoch = userEpochRef.current;
+    const requestId = ++workspaceRequestRef.current;
+    const isCurrent = () => currentUserIdRef.current === userId && userEpochRef.current === epoch && workspaceRequestRef.current === requestId;
+    if (!isCurrent()) return;
+    setLoading(true);
     try {
       // Get user's profile with current workspace
       const { data: profile, error: profileError } = await supabase
@@ -144,6 +174,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', userId)
         .maybeSingle();
       
+      if (!isCurrent()) return;
       if (profileError) {
         console.error('[Workspace] Error loading profile:', profileError);
       }
@@ -154,6 +185,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         .select('*')
         .eq('owner_id', userId);
       
+      if (!isCurrent()) return;
       if (ownedError) {
         console.error('[Workspace] Error loading owned workspaces:', ownedError);
       }
@@ -165,6 +197,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         .eq('user_id', userId)
         .not('accepted_at', 'is', null);
       
+      if (!isCurrent()) return;
       if (memberError) {
         console.error('[Workspace] Error loading member workspaces:', memberError);
       }
@@ -180,6 +213,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
           .in('id', memberWorkspaceIds)
           .neq('owner_id', userId);
         
+        if (!isCurrent()) return;
         if (sharedWorkspaces) {
           allWorkspaces = [...allWorkspaces, ...sharedWorkspaces];
         }
@@ -203,6 +237,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', userId);
       }
 
+      if (!isCurrent()) return;
       const current = formattedWorkspaces.find(w => w.id === currentWsId) || formattedWorkspaces[0];
       setCurrentWorkspace(current || null);
 
@@ -212,10 +247,11 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
         setLoading(false);
       }
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('[Workspace] Failed to load workspaces:', error);
       setLoading(false);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [loadWorkspaceDetails]);
 
@@ -226,12 +262,7 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
     }
 
     // If no user, set loading to false and return
-    if (!user) {
-      setLoading(false);
-      hasLoadedRef.current = false;
-      currentUserIdRef.current = null;
-      return;
-    }
+    if (!user) return;
 
     // Only load if user changed or we haven't loaded yet
     if (hasLoadedRef.current && currentUserIdRef.current === user.id) {
@@ -244,22 +275,34 @@ export const WorkspaceProvider = ({ children }: { children: ReactNode }) => {
   }, [user, authLoading, loadWorkspaces]);
 
   const switchWorkspace = useCallback(async (workspaceId: string) => {
-    if (!user) return;
+    if (!user || currentUserIdRef.current !== user.id) return;
+    const epoch = userEpochRef.current;
+    const requestId = ++workspaceRequestRef.current;
+    detailsRequestRef.current += 1;
+    const isCurrent = () => currentUserIdRef.current === user.id && userEpochRef.current === epoch && workspaceRequestRef.current === requestId;
+    setLoading(true);
 
     const { error } = await supabase
       .from('profiles')
       .update({ current_workspace_id: workspaceId })
       .eq('id', user.id);
 
+    if (!isCurrent()) return;
     if (error) {
+      setLoading(false);
       throw error;
     }
 
     const workspace = workspaces.find(w => w.id === workspaceId);
     setCurrentWorkspace(workspace || null);
 
+    setMembers([]);
+    setInvitations([]);
+    setUserRole(null);
     if (workspace) {
       await loadWorkspaceDetails(workspaceId, workspaces, user.id);
+    } else {
+      setLoading(false);
     }
   }, [user, workspaces, loadWorkspaceDetails]);
 

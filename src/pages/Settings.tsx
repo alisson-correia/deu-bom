@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  CalendarDays,
   Download,
   Edit2,
   Eye,
@@ -11,7 +12,6 @@ import {
   Mail,
   Monitor,
   Moon,
-  ShieldCheck,
   Sun,
   Trash2,
   Upload,
@@ -30,6 +30,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useFinanceStore, useSettings } from '@/stores/financeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { GoogleIntegrationPanel } from '@/components/GoogleIntegrationPanel';
+import { AccentColorPicker } from '@/components/AccentColorPicker';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { supabase } from '@/integrations/supabase/client';
 import { getErrorMessage } from '@/utils/errors';
@@ -127,30 +129,15 @@ const Settings: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const stats = useMemo(
-    () => [
-      {
-        label: 'Usuario',
-        value: profileData.displayName || user?.email || 'Sem identificacao',
-      },
-      {
-        label: 'Workspace',
-        value: currentWorkspace?.name || 'Sem workspace ativo',
-      },
-      {
-        label: 'Acesso',
-        value:
-          userRole === 'owner'
-            ? 'Proprietario'
-            : userRole === 'editor'
-            ? 'Editor'
-            : userRole === 'viewer'
-            ? 'Visualizador'
-            : 'Usuario',
-      },
-    ],
-    [currentWorkspace?.name, profileData.displayName, user?.email, userRole]
-  );
+  const [activeSection, setActiveSection] = useState<'profile' | 'team' | 'appearance' | 'data' | 'agenda'>(() => new URLSearchParams(window.location.search).has('google') ? 'agenda' : 'profile');
+  const accessLabel = userRole === 'owner' ? 'Proprietário' : userRole === 'editor' ? 'Editor' : userRole === 'viewer' ? 'Visualizador' : 'Usuário';
+  const sections = [
+    { id: 'profile' as const, label: 'Perfil', icon: User },
+    { id: 'team' as const, label: 'Equipe', icon: Users },
+    { id: 'appearance' as const, label: 'Aparência', icon: Sun },
+    { id: 'agenda' as const, label: 'Agenda', icon: CalendarDays },
+    { id: 'data' as const, label: 'Dados', icon: FileSpreadsheet },
+  ];
 
   const handleSignOut = async () => {
     setIsLoggingOut(true);
@@ -428,49 +415,102 @@ const Settings: React.FC = () => {
   return (
     <AppShell>
       <PageIntro
-        eyebrow="Configuracoes"
-        title="Conta, equipe e preferencias"
-        description="Uma area mais limpa para gerenciar workspace, aparencia e os dados do app sem excesso de informacao."
-      >
-        <div className="grid gap-3 sm:grid-cols-3">
-          {stats.map((item) => (
-            <div key={item.label} className="rounded-2xl border border-border/60 bg-background/60 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {item.label}
-              </p>
-              <p className="mt-2 text-sm font-medium text-foreground">{item.value}</p>
-            </div>
-          ))}
-        </div>
-      </PageIntro>
+        eyebrow="Sua conta"
+        title="Configurações"
+        description="Escolha o que deseja ajustar."
+      />
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
+      <nav aria-label="Seções das configurações" className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 sm:grid-cols-5">
+        {sections.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            aria-pressed={activeSection === section.id}
+            aria-controls="settings-active-section"
+            onClick={() => setActiveSection(section.id)}
+            className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeSection === section.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+          >
+            <section.icon aria-hidden="true" className="h-4 w-4 shrink-0" />
+            {section.label}
+          </button>
+        ))}
+      </nav>
+
+      <div id="settings-active-section" role="region" aria-labelledby="settings-section-title" className="min-w-0">
+        {activeSection === 'profile' && (
           <SurfaceCard className="overflow-hidden p-0">
             <div className="border-b border-border/70 p-5">
-              <h3 className="text-lg font-semibold">Workspace e equipe</h3>
+              <h2 id="settings-section-title" className="text-lg font-semibold">Perfil e conta</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Ajuste o nome do espaco, convide pessoas e acompanhe o nivel de acesso.
+                Atualize seu nome ou encerre a sessão neste dispositivo.
+              </p>
+            </div>
+
+            <div className="space-y-3 p-5">
+              <button
+                aria-label="Editar meu perfil"
+                onClick={() => setShowProfileModal(true)}
+                className="flex w-full items-center justify-between rounded-2xl border border-border/70 bg-background/60 p-4 text-left transition-colors hover:bg-muted/50"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="break-words font-medium text-foreground">
+                      {profileData.displayName || 'Sem nome'}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {user?.email}
+                    </p>
+                  </div>
+                </div>
+                <Edit2 aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+
+              <button
+                onClick={handleSignOut}
+                disabled={isLoggingOut}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-expense/20 bg-expense/10 p-4 text-sm font-semibold text-expense disabled:opacity-50"
+              >
+                {isLoggingOut ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                Sair da conta
+              </button>
+            </div>
+          </SurfaceCard>
+        )}
+        {activeSection === 'team' && (
+          <SurfaceCard className="overflow-hidden p-0">
+            <div className="border-b border-border/70 p-5">
+              <h2 id="settings-section-title" className="text-lg font-semibold">Equipe e acesso</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Gerencie o espaço compartilhado e quem pode acessar os dados.
               </p>
             </div>
 
             <div className="space-y-5 p-5">
-              <div className="rounded-[24px] border border-border/70 bg-background/60 p-4">
+              <div className="rounded-xl bg-muted/30 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Workspace atual
                     </p>
                     {isEditingWorkspaceName ? (
-                      <div className="mt-3 flex items-center gap-2">
+                      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
                         <input
                           type="text"
                           value={workspaceNameInput}
                           onChange={(event) => setWorkspaceNameInput(event.target.value)}
-                          className="flex-1 rounded-xl border border-border bg-input px-3 py-3 text-sm text-foreground"
+                          aria-label="Nome do workspace"
+                          className="min-w-0 flex-1 rounded-xl border border-border bg-input px-3 py-3 text-sm text-foreground"
                           autoFocus
                         />
                         <button
+                          aria-label="Salvar nome do workspace"
                           onClick={handleSaveWorkspaceName}
                           disabled={isSavingWorkspaceName}
                           className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-60"
@@ -482,6 +522,7 @@ const Settings: React.FC = () => {
                           )}
                         </button>
                         <button
+                          aria-label="Cancelar edição do workspace"
                           onClick={() => setIsEditingWorkspaceName(false)}
                           className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted text-muted-foreground"
                         >
@@ -490,11 +531,11 @@ const Settings: React.FC = () => {
                       </div>
                     ) : (
                       <>
-                        <p className="mt-2 text-lg font-semibold text-foreground">
+                        <p className="mt-2 break-words text-lg font-semibold text-foreground">
                           {currentWorkspace?.name || 'Sem workspace ativo'}
                         </p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Seu nivel de acesso: {stats[2].value}
+                          Seu nivel de acesso: {accessLabel}
                         </p>
                       </>
                     )}
@@ -502,8 +543,9 @@ const Settings: React.FC = () => {
 
                   {canManageWorkspace && !isEditingWorkspaceName ? (
                     <button
+                      aria-label="Editar nome do workspace"
                       onClick={handleStartEditWorkspaceName}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground transition-colors hover:text-foreground"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
@@ -511,8 +553,8 @@ const Settings: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-[24px] border border-primary/10 bg-primary/5 p-4">
+              <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-xl border border-border p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <UserPlus className="h-4 w-4 text-primary" />
                     <h4 className="font-medium text-foreground">Convite rapido</h4>
@@ -526,6 +568,7 @@ const Settings: React.FC = () => {
                           type="email"
                           value={inviteEmail}
                           onChange={(event) => setInviteEmail(event.target.value)}
+                          aria-label="Email da pessoa convidada"
                           placeholder="email@exemplo.com"
                           className="w-full rounded-xl border border-border bg-input py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground"
                         />
@@ -533,27 +576,29 @@ const Settings: React.FC = () => {
 
                       <div className="grid grid-cols-2 gap-2 rounded-xl bg-background/70 p-1">
                         <button
+                          aria-pressed={inviteRole === 'viewer'}
                           onClick={() => setInviteRole('viewer')}
-                          className={`rounded-lg py-2 text-xs font-medium transition-all ${
+                          className={`min-h-11 rounded-lg py-2 text-sm font-medium transition-all ${
                             inviteRole === 'viewer'
                               ? 'bg-card text-foreground shadow-[var(--shadow-sm)]'
                               : 'text-muted-foreground'
                           }`}
                         >
-                          <span className="inline-flex items-center gap-1">
+                          <span className="inline-flex flex-col items-center gap-1 sm:flex-row">
                             <Eye className="h-3 w-3" />
                             Visualizador
                           </span>
                         </button>
                         <button
+                          aria-pressed={inviteRole === 'editor'}
                           onClick={() => setInviteRole('editor')}
-                          className={`rounded-lg py-2 text-xs font-medium transition-all ${
+                          className={`min-h-11 rounded-lg py-2 text-sm font-medium transition-all ${
                             inviteRole === 'editor'
                               ? 'bg-card text-foreground shadow-[var(--shadow-sm)]'
                               : 'text-muted-foreground'
                           }`}
                         >
-                          <span className="inline-flex items-center gap-1">
+                          <span className="inline-flex flex-col items-center gap-1 sm:flex-row">
                             <Edit2 className="h-3 w-3" />
                             Editor
                           </span>
@@ -580,7 +625,7 @@ const Settings: React.FC = () => {
                   )}
                 </div>
 
-                <div className="rounded-[24px] border border-border/70 bg-background/60 p-4">
+                <div className="rounded-xl bg-muted/30 p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <h4 className="font-medium text-foreground">Equipe</h4>
@@ -599,17 +644,18 @@ const Settings: React.FC = () => {
               </div>
             </div>
           </SurfaceCard>
-
+        )}
+        {activeSection === 'appearance' && (
           <SurfaceCard className="overflow-hidden p-0">
             <div className="border-b border-border/70 p-5">
-              <h3 className="text-lg font-semibold">Aparencia e alertas</h3>
+              <h2 id="settings-section-title" className="text-lg font-semibold">Aparência e alertas</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Ajuste o tema da interface e o comportamento dos lembretes.
               </p>
             </div>
 
-            <div className="grid gap-5 p-5 lg:grid-cols-[1fr_0.9fr]">
-              <div className="rounded-[24px] border border-border/70 bg-background/60 p-4">
+            <div className="grid gap-5 p-4 sm:p-5 xl:grid-cols-[1fr_0.9fr]">
+              <div className="rounded-xl bg-muted/30 p-4">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Tema
                 </p>
@@ -617,6 +663,7 @@ const Settings: React.FC = () => {
                   {themeOptions.map((option) => (
                     <button
                       key={option.id}
+                      aria-pressed={theme === option.id}
                       onClick={() => setTheme(option.id)}
                       className={`rounded-xl py-3 text-sm font-medium transition-all ${
                         theme === option.id
@@ -624,16 +671,17 @@ const Settings: React.FC = () => {
                           : 'text-muted-foreground'
                       }`}
                     >
-                      <span className="inline-flex items-center gap-2">
+                      <span className="inline-flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
                         <option.icon className="h-4 w-4" />
                         {option.label}
                       </span>
                     </button>
                   ))}
                 </div>
+                <AccentColorPicker />
               </div>
 
-              <div className="rounded-[24px] border border-border/70 bg-background/60 p-4">
+              <div className="rounded-xl bg-muted/30 p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -646,20 +694,24 @@ const Settings: React.FC = () => {
                   </div>
 
                   <button
+                    type="button"
+                    role="switch"
+                    aria-label="Notificações de pendências"
+                    aria-checked={settings.notificationsEnabled}
                     onClick={() =>
                       updateSettings({
                         notificationsEnabled: !settings.notificationsEnabled,
                       })
                     }
-                    className={`relative h-5 w-10 rounded-full border transition-all ${
+                    className={`relative h-11 w-14 shrink-0 rounded-full border transition-all ${
                       settings.notificationsEnabled
                         ? 'border-primary/30 bg-primary/80'
                         : 'border-border/70 bg-muted/70'
                     }`}
                   >
                     <div
-                      className={`absolute top-[2px] h-3.5 w-3.5 rounded-full bg-card shadow-sm transition-all ${
-                        settings.notificationsEnabled ? 'left-[20px]' : 'left-[2px]'
+                      className={`absolute top-[13px] h-4 w-4 rounded-full bg-card shadow-sm transition-all ${
+                        settings.notificationsEnabled ? 'left-[30px]' : 'left-[7px]'
                       }`}
                     />
                   </button>
@@ -680,12 +732,20 @@ const Settings: React.FC = () => {
               </div>
             </div>
           </SurfaceCard>
-        </div>
-
-        <div className="space-y-6">
+        )}
+        {activeSection === 'agenda' && (
           <SurfaceCard className="overflow-hidden p-0">
             <div className="border-b border-border/70 p-5">
-              <h3 className="text-lg font-semibold">Dados</h3>
+              <h2 id="settings-section-title" className="text-lg font-semibold">Agenda e tarefas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Conecte o Google para acompanhar seus lançamentos.</p>
+            </div>
+            <GoogleIntegrationPanel />
+          </SurfaceCard>
+        )}
+        {activeSection === 'data' && (
+          <SurfaceCard className="overflow-hidden p-0">
+            <div className="border-b border-border/70 p-5">
+              <h2 id="settings-section-title" className="text-lg font-semibold">Seus dados</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Exporte, importe e limpe dados com mais previsibilidade.
               </p>
@@ -772,65 +832,7 @@ const Settings: React.FC = () => {
               </div>
             </div>
           </SurfaceCard>
-
-          <SurfaceCard className="overflow-hidden p-0">
-            <div className="border-b border-border/70 p-5">
-              <h3 className="text-lg font-semibold">Minha conta</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Perfil, seguranca basica e saida da sessao.
-              </p>
-            </div>
-
-            <div className="space-y-3 p-5">
-              <button
-                onClick={() => setShowProfileModal(true)}
-                className="flex w-full items-center justify-between rounded-2xl border border-border/70 bg-background/60 p-4 text-left transition-colors hover:bg-muted/50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">
-                      {profileData.displayName || 'Sem nome'}
-                    </p>
-                    <p className="max-w-[240px] truncate text-sm text-muted-foreground">
-                      {user?.email}
-                    </p>
-                  </div>
-                </div>
-                <Edit2 className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              <div className="rounded-2xl border border-border/70 bg-background/60 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <ShieldCheck className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Sincronizacao protegida</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Seus dados ficam vinculados ao usuario autenticado e ao workspace ativo.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSignOut}
-                disabled={isLoggingOut}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-expense/20 bg-expense/10 p-4 text-sm font-semibold text-expense disabled:opacity-50"
-              >
-                {isLoggingOut ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogOut className="h-4 w-4" />
-                )}
-                Sair da conta
-              </button>
-            </div>
-          </SurfaceCard>
-        </div>
+        )}
       </div>
 
       <BottomNav />
