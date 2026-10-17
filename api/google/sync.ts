@@ -1,1 +1,1 @@
-export { sync as default } from '../../server/google';
+export { sync as default } from '../../server/google.js';

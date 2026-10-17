@@ -1,1 +1,1 @@
-export { callback as default } from '../../server/google';
+export { callback as default } from '../../server/google.js';

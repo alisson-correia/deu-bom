@@ -1,1 +1,1 @@
-export { status as default } from '../../server/google';
+export { status as default } from '../../server/google.js';

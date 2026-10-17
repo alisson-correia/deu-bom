@@ -1,1 +1,1 @@
-export { disconnect as default } from '../../server/google';
+export { disconnect as default } from '../../server/google.js';

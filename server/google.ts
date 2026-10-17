@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { seal, unseal, constantEqual } from './googleCrypto';
-import { eventId, eventPayload, fingerprint, taskPayload, type FinanceRow } from './googleMapping';
+import { seal, unseal, constantEqual } from './googleCrypto.js';
+import { eventId, eventPayload, fingerprint, taskPayload, type FinanceRow } from './googleMapping.js';
 
 type Request = IncomingMessage & { body?: Record<string, unknown> };
 type Handler = (request: Request, response: ServerResponse) => Promise<void>;
