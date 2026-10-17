@@ -55,7 +55,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     const previous = document.activeElement as HTMLElement | null;
     const dialog = dialogRef.current;
     if (!dialog) return;
-    dialog.querySelector<HTMLInputElement>('input')?.focus();
+    const firstVisible = [...dialog.querySelectorAll<HTMLElement>('input, select, button')].find(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0);
+    (firstVisible || dialog).focus();
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !busyRef.current) { event.stopPropagation(); closeRef.current(); }
       if (event.key !== 'Tab') return;
@@ -499,7 +500,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           exit={{ opacity: 0, y: 24, scale: 0.98 }}
           transition={{ type: 'spring', damping: 24, stiffness: 280 }}
           onClick={(event) => event.stopPropagation()}
-          ref={dialogRef} role="dialog" aria-modal="true" aria-label={editTransaction ? 'Editar transacao' : 'Nova transacao'}
+          ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={editTransaction ? 'Editar transacao' : 'Nova transacao'}
           className="transaction-dialog absolute bottom-0 left-0 right-0 flex max-h-[96dvh] flex-col overflow-hidden rounded-t-3xl bg-card sm:static sm:max-h-[86vh] sm:w-[min(42rem,calc(100vw-1.5rem))] sm:rounded-3xl"
         >
           <div className="sticky top-0 z-30 flex flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-5">

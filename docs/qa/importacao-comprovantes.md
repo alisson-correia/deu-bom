@@ -19,3 +19,11 @@ Leitura usa OPENAI_API_KEY (gpt-4.1-mini), ou AI_GATEWAY_API_KEY/OIDC da Vercel 
 “Despesa 10 açúcares, 1 quilo cada, R$50 cada um à vista pago dia 10/11/2026” prepara R$500, preserva quantidade e embalagem nas observações e associa categoria alimentar existente. “10 quilos de açúcar 50 reais cada” na lista prepara quantidade 10 kg a R$50 por kg. O peso de cada pacote não substitui a quantidade de pacotes. Quando a base do preço financeiro é ambígua, a revisão pergunta se é unitário ou total.
 
 A revisão exibe um resumo; dados reconhecidos podem ser editados. Data, situação e categoria desconhecidas aparecem para completar. Nada é cadastrado sem confirmação. A lista de compras permanece local ao navegador; os lançamentos financeiros e anexos usam Supabase.
+
+## Verificação em 17/10/2026
+
+A suíte de 125 cenários em cinco formatos passou no GitHub. A correção adicional de foco da revisão compacta foi coberta por 10 verificações de cadastro/foco nos mesmos formatos. Os 17 testes unitários, typecheck, lint, build e teste do service worker passaram.
+
+Um teste real do Supabase usou uma conta temporária, com sessão própria e dados sintéticos: upload privado de PDF, lote de duas parcelas com anexos, repetição idempotente (zero novos registros), links assinados e rejeição de lote inválido sem gravação parcial. A importação em equipe não autorizada foi negada. A reserva de quota funcionou no servidor e foi negada ao cliente. Arquivo e conta temporários foram excluídos; a consulta final confirmou zero lançamentos residuais dessa conta. Nenhum lançamento financeiro de contas reais foi alterado nesse teste.
+
+O teste real de IA permanece separado: o Gateway exigiu verificação da conta. Respostas simuladas de extração não comprovam que a leitura automática esteja liberada em produção.

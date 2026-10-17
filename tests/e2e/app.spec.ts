@@ -576,7 +576,7 @@ test('voz calcula quantidade e embalagem e pede apenas confirmação quando os d
  await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'Nova transacao'}); const review=dialog.getByLabel('Conferir dados da fala');
  await expect(review).toContainText('500,00'); await expect(review).toContainText('10 un de 1 kg cada'); await expect(review).toContainText('Mercado');
- await expect(dialog.getByLabel('Descrição')).toBeHidden(); await expect(review.getByRole('combobox')).toHaveCount(0); expect(state.writes).toHaveLength(0);
+ await expect(dialog.getByLabel('Descrição')).toBeHidden(); await expect.poll(()=>dialog.evaluate(element=>element.contains(document.activeElement))).toBe(true); await expect(review.getByRole('combobox')).toHaveCount(0); expect(state.writes).toHaveLength(0);
  await dialog.getByRole('button',{name:'Salvar',exact:true}).click(); await expect(dialog).toHaveCount(0);
  expect(state.rows).toHaveLength(1); expect(state.rows[0]).toMatchObject({amount:500,status:'completed',date:'2026-11-10',category_id:categories[0].id}); expect(state.rows[0].notes).toContain('10 un de 1 kg cada');
  await page.getByRole('button',{name:'Falar com o app',exact:true}).click(); await page.evaluate(()=> (window as unknown as {sendVoice:(text:string)=>void}).sendVoice('despesa açúcar 50 reais')); await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
