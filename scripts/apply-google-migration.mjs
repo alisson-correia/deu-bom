@@ -1,11 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import pg from 'pg';
+import { rootCertificates } from 'node:tls';
 
 const value = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
 if (!value) throw new Error('A conexão administrativa PostgreSQL não está configurada.');
 const url = new URL(value);
 url.searchParams.delete('sslmode');
-const client = new pg.Client({ connectionString: url.toString(), ssl: { rejectUnauthorized: true }, connectionTimeoutMillis: 15000 });
+// Supabase's published database CA; keep chain and hostname verification enabled.
+const ca = await readFile(new URL('./certs/supabase-prod-ca-2021.crt', import.meta.url), 'utf8');
+const client = new pg.Client({ connectionString: url.toString(), ssl: { rejectUnauthorized: true, ca: [...rootCertificates, ca] }, connectionTimeoutMillis: 15000 });
 try {
   await client.connect();
   await client.query('BEGIN');
