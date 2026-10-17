@@ -8,7 +8,9 @@ import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PWAInstallHint } from "@/components/PWAInstallHint";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppToolbar } from "@/components/AppToolbar";
+import { VoiceProvider } from "@/components/VoiceProvider";
+import More from "./pages/More";
 import { PWAUpdateNotice } from "@/components/PWAUpdateNotice";
 import { PendingNotifications } from "@/components/PendingNotifications";
 import Dashboard from "./pages/Dashboard";
@@ -31,10 +33,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <TooltipProvider>
-        <div className="app-toolbar sticky top-0 z-40 flex h-14 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 backdrop-blur-xl md:ml-[var(--app-sidebar-width,88px)]">
-          <span className="text-sm font-semibold tracking-wide">DEU BOM!!</span>
-          <ThemeToggle />
-        </div>
         <AuthProvider>
           <WorkspaceProvider>
             <Toaster />
@@ -43,6 +41,8 @@ const App = () => (
             <PWAUpdateNotice />
             <PendingNotifications />
             <BrowserRouter>
+              <VoiceProvider>
+              <AppToolbar />
               <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/confirm" element={<AuthConfirm />} />
@@ -106,8 +106,10 @@ const App = () => (
                   </ProtectedRoute>
                 }
               />
+              <Route path="/more" element={<ProtectedRoute><More /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+              </VoiceProvider>
           </BrowserRouter>
         </WorkspaceProvider>
       </AuthProvider>

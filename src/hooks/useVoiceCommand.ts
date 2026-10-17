@@ -65,6 +65,17 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
     setIsListening(false);
   }, []);
 
+  const cancelListening = useCallback(() => {
+    const recognition = recognitionRef.current;
+    if (recognition) {
+      recognition.onresult = null; recognition.onend = null; recognition.onerror = null;
+      if (recognition.abort) recognition.abort(); else recognition.stop();
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setLastTranscript('');
+  }, []);
+
   const startListening = useCallback(() => {
     if (recognitionRef.current) return;
     if (!Recognition) {
@@ -158,5 +169,6 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
     lastTranscript,
     startListening,
     stopListening,
+    cancelListening,
   };
 };

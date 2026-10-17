@@ -9,6 +9,8 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'tablet', use: { ...devices['iPad Mini'], browserName: 'chromium' } },
+    { name: 'tablet-landscape', use: { ...devices['iPad Pro 11 landscape'], browserName: 'chromium' } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
     { name: 'small-mobile', use: { ...devices['Desktop Chrome'], viewport: { width: 320, height: 700 }, hasTouch: true } },
   ],

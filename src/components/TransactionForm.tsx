@@ -469,7 +469,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
 
   return (
     <AnimatePresence>
-      <motion.div
+      <motion.div key="transaction-sheet"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -1005,7 +1005,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         </motion.div>
       </motion.div>
 
-      <TransactionUpdateModal
+      <TransactionUpdateModal key="update-scope"
         isOpen={showUpdateScopeModal}
         onClose={() => {
           if (isResolvingScope) return;

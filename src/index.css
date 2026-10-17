@@ -50,6 +50,8 @@
     --ring: 258 78% 76%;
 
     --radius: 0.75rem;
+    --app-sidebar-width: 0px;
+    --app-bottom-nav-height: 84px;
 
     --sidebar-background: 220 18% 11%;
     --sidebar-foreground: 220 10% 85%;
@@ -334,6 +336,13 @@ button.touch-btn, a.touch-btn { min-height: 44px; }
 .transaction-dialog input, .transaction-dialog select { min-height: 44px; font-size: 16px; }
 .transaction-dialog button { min-height: 44px; }
 .transaction-dialog { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.page-intro button, .page-intro a { min-height: 44px; }
+.dashboard-balance { overflow-wrap: anywhere; }
+.app-toolbar button, .app-toolbar a { -webkit-tap-highlight-color: transparent; }
+.app-toolbar > div > a { min-height: 44px; display: inline-flex; align-items: center; }
+@media (min-width: 1280px) {
+  :root { --app-sidebar-width: 88px; --app-bottom-nav-height: 0px; }
+}
 .new-transaction-button[aria-pressed="true"] { background: hsl(var(--primary) / .12); border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 @media (max-width: 380px) {
   .app-toolbar { padding-inline: 12px; }

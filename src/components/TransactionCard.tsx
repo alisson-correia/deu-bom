@@ -183,7 +183,8 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
         {/* Delete background */}
         <div 
           className="absolute inset-y-0 right-0 bg-destructive flex items-center justify-center rounded-xl"
-          style={{ width: swipeOffset + 20 }}
+          aria-hidden="true"
+          style={{ width: swipeOffset > 0 ? swipeOffset + 20 : 0, opacity: swipeOffset > 0 ? 1 : 0 }}
         >
           <Trash2 className="w-5 h-5 text-destructive-foreground" />
         </div>
