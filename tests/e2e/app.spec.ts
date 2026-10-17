@@ -536,6 +536,10 @@ test('PDF e IA preparam parcelas para revisão e anexam somente após confirmar'
   await expect(page.getByLabel('Valor total em R$', { exact: true })).toHaveValue('3000,00'); expect(state.writes).toHaveLength(0); expect(state.receiptUploads).toBe(0);
   await page.getByRole('button', { name: 'Gerar prévia dos lançamentos', exact: true }).click();
   await expect(page.getByLabel('Prévia da importação', { exact: true })).toContainText('6 lançamentos'); expect(state.writes).toHaveLength(0);
+  await page.getByRole('group', {name:'Item 1',exact:true}).getByLabel('Descrição', {exact:true}).fill('Notebook PDF revisado');
+  await expect(page.getByLabel('Prévia da importação', { exact:true })).toHaveCount(0);
+  await page.getByRole('button', {name:'Gerar prévia dos lançamentos',exact:true}).click();
+  await expect(page.getByLabel('Prévia da importação', { exact:true })).toContainText('Notebook PDF revisado');
   await page.getByRole('button', { name: 'Importar 6 lançamentos', exact: true }).click();
   await expect(page.getByLabel('Prévia da importação', { exact: true })).toHaveCount(0); expect(state.rows).toHaveLength(6); expect(state.attachments).toHaveLength(6); expect(state.receiptUploads).toBe(1);
 });

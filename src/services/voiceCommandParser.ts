@@ -15,6 +15,7 @@ export type ParsedVoiceCommand =
       categoryHint?: string;
       itemDetails?: VoiceItemDetails;
       paymentSpecified?: boolean;
+      amountIsTotal?: boolean;
     }
   | {
       kind: 'shopping';
@@ -367,7 +368,7 @@ export const parseVoiceCommand = (
     const itemDetails = parseVoiceItemDetails(transcript);
     const amount = itemDetails?.unitPrice && itemDetails.priceBasis === 'unit'
       ? Math.round(itemDetails.unitPrice * itemDetails.quantity * 100) / 100 : itemDetails && !/(?:r\s*\$|reais|real|valor|preco|custa|por\s+\d)/.test(normalized) ? 0 : parseAmount(normalized);
-    const title = cleanTitle(normalized, amount).replace(/\b(cada|um|uma|unidades?|quilos?|kg|a vista|ja pago|pago|paguei|recebido|pendente|a pagar)\b/g, ' ').replace(/r\s*\$|\$/g, ' ').replace(/\s+/g, ' ').trim();
+    const title = cleanTitle(normalized, amount).replace(/\b(cada|um|uma|unidades?|quilos?|kg|a vista|ja pago|pago|paguei|recebido|pendente|a pagar)\b/g, ' ').replace(/r\s*\$|\$|[,;:]/g, ' ').replace(/\s+/g, ' ').trim();
     const dayOfMonth = parseDayOfMonth(normalized);
     const date = parseExplicitDate(normalized);
     if (date === null) return null;
@@ -397,6 +398,7 @@ export const parseVoiceCommand = (
       dayOfMonth,
       date,
       itemDetails,
+      amountIsTotal: Boolean(itemDetails || (installmentCount && !/\b(?:\d+\s*x\s+de|\d+\s+parcelas\s+de|repetir|repete|repetindo)\b/.test(normalized))),
       categoryHint: /\b(acucar|acucares|arroz|feijao|leite|carne|pao|alimenta[cç]ao|mercado|supermercado)\b/.test(normalized) ? 'Alimentação' : undefined,
       status: /\b(paguei|ja pago|pago|recebido|recebi|quitado)\b/.test(normalized) ? 'completed' : /\b(pendente|a pagar|vou pagar|a receber)\b/.test(normalized) ? 'pending' : undefined,
       paymentSpecified: Boolean(installmentCount || isSubscription || /\b(a vista|unica|unico)\b/.test(normalized)),

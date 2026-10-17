@@ -48,3 +48,10 @@ test('quantidade, embalagem e preço unitário geram total sem confundir peso co
  const total = parseVoiceCommand('10 unidades de açúcar valor total de 50 reais', {preferredKind:'shopping'});
  assert.ok(total?.kind === 'shopping'); assert.equal(total.estimatedPrice,5);
 });
+
+
+test('valor total parcelado é diferente de preço da parcela e repetição mensal', () => {
+ for(const [text,total] of [['despesa notebook 3000 reais em 6 parcelas',true],['despesa notebook 3x de 100 reais',false],['receita salário 3000 reais repetir 12 vezes',false]] as const){
+  const command=parseVoiceCommand(text,{preferredKind:'transaction'});assert.ok(command?.kind==='transaction');assert.equal(command.amountIsTotal,total);
+ }
+});

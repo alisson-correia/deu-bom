@@ -169,7 +169,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         if (foodCategoryId) setCategoryId(foodCategoryId);
         setTitle(initialDraft.title);
         // The parser returns the installment price; this form expects the total.
-        setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' && !initialDraft.itemDetails ? (initialDraft.installmentCount || 2) : 1));
+        setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' && !initialDraft.amountIsTotal ? (initialDraft.installmentCount || 2) : 1));
         setRecurrenceType(initialDraft.recurrenceType);
         setInstallments(initialDraft.installmentCount || 2);
         if (initialDraft.date) {
