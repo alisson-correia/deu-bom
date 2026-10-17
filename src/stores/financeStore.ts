@@ -19,9 +19,9 @@ import {
 } from '@/utils/transactionSeries';
 
 const defaultCategories: Omit<Category, 'id'>[] = [
-  { name: 'Salario', icon: 'Wallet', color: '#22c55e', type: 'income' },
-  { name: 'Freelance', icon: 'Briefcase', color: '#10b981', type: 'income' },
-  { name: 'Investimentos', icon: 'TrendingUp', color: '#14b8a6', type: 'income' },
+  { name: 'Salario', icon: 'Wallet', color: '#4b70b9', type: 'income' },
+  { name: 'Freelance', icon: 'Briefcase', color: '#7560bb', type: 'income' },
+  { name: 'Investimentos', icon: 'TrendingUp', color: '#9370c4', type: 'income' },
   { name: 'Outros', icon: 'Plus', color: '#06b6d4', type: 'income' },
   { name: 'Alimentacao', icon: 'Utensils', color: '#f97316', type: 'expense' },
   { name: 'Transporte', icon: 'Car', color: '#eab308', type: 'expense' },
@@ -50,6 +50,7 @@ interface FinanceSnapshot {
 interface FinanceState extends FinanceSnapshot {
   loading: boolean;
   initialized: boolean;
+  loadError: string | null;
 
   initialize: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -223,12 +224,13 @@ const loadFinanceSnapshot = async (): Promise<FinanceSnapshot | null> => {
     };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
 
+  if (profileError) throw profileError;
   const workspaceId = profile?.current_workspace_id;
 
   let categoriesQuery = supabase.from('categories').select('*');
@@ -248,7 +250,9 @@ const loadFinanceSnapshot = async (): Promise<FinanceSnapshot | null> => {
     budgetsQuery = budgetsQuery.eq('user_id', user.id).is('workspace_id', null);
   }
 
-  let { data: categories } = await categoriesQuery;
+  const categoryResult = await categoriesQuery;
+  if (categoryResult.error) throw categoryResult.error;
+  let categories = categoryResult.data;
 
   if (!categories || categories.length === 0) {
     const categoriesToInsert = defaultCategories.map((category) => ({
@@ -296,6 +300,7 @@ const applySnapshot = (
 ) => {
   set({
     ...snapshot,
+    loadError: null,
     loading: false,
     initialized: true,
   });
@@ -325,9 +330,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   settings: defaultSettings,
   loading: true,
   initialized: false,
+  loadError: null,
 
   initialize: async () => {
-    set({ loading: true });
+    set({ loading: true, loadError: null });
 
     try {
       const snapshot = await loadFinanceSnapshot();
@@ -340,7 +346,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     } catch (error) {
       console.error('Failed to initialize finance store:', error);
       toast.error(getFinanceErrorMessage(error, 'Nao foi possivel carregar seus dados financeiros.'));
-      set({ loading: false, initialized: true });
+      set({ loading: false, initialized: true, loadError: 'Não foi possível carregar seus dados. Tente novamente.' });
     }
   },
 
@@ -354,6 +360,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     } catch (error) {
       console.error('Failed to refresh finance data:', error);
       toast.error(getFinanceErrorMessage(error, 'Nao foi possivel sincronizar os dados.'));
+      set({ loadError: 'Não foi possível atualizar. Os dados exibidos podem estar desatualizados.' });
     }
   },
 

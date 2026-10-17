@@ -9,6 +9,10 @@ import {
   Wallet,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Mic, MicOff } from 'lucide-react';
+import { useVoiceCommand } from '@/hooks/useVoiceCommand';
+import { parseVoiceCommand, type ParsedVoiceCommand } from '@/services/voiceCommandParser';
+import { toast } from 'sonner';
 import { BottomNav } from '@/components/BottomNav';
 import { MonthSwitcher } from '@/components/MonthSwitcher';
 import { TransactionCard } from '@/components/TransactionCard';
@@ -28,6 +32,7 @@ import { formatCurrency } from '@/utils/currency';
 import type { Transaction, TransactionType } from '@/types/finance';
 
 const Dashboard: React.FC = () => {
+  const [voiceDraft, setVoiceDraft] = useState<Extract<ParsedVoiceCommand, { kind: 'transaction' }> | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editTransaction, setEditTransaction] = useState<Transaction | null>(null);
   const [defaultType, setDefaultType] = useState<TransactionType>('expense');
@@ -37,6 +42,7 @@ const Dashboard: React.FC = () => {
   const categories = useCategories();
   const loading = useFinanceLoading();
   const initialize = useFinanceStore((state) => state.initialize);
+  const loadError = useFinanceStore((state) => state.loadError);
   const initialized = useFinanceStore((state) => state.initialized);
 
   useEffect(() => {
@@ -118,7 +124,17 @@ const Dashboard: React.FC = () => {
     };
   }, [categories, monthlyTransactions]);
 
+  const { isSupported, isListening, lastTranscript, startListening, stopListening } = useVoiceCommand({
+    onTranscript: (text) => {
+      const command = parseVoiceCommand(text, { preferredKind: 'transaction' });
+      if (!command || command.kind !== 'transaction') { toast.error('Não entendi o lançamento. Diga “despesa mercado 35,90 reais” ou preencha manualmente.'); return; }
+      setVoiceDraft(command); setDefaultType(command.type); setEditTransaction(null); setIsFormOpen(true);
+      toast.info('Revise os dados reconhecidos antes de salvar.');
+    },
+  });
+
   const handleAddTransaction = (type: TransactionType) => {
+    setVoiceDraft(null);
     setDefaultType(type);
     setEditTransaction(null);
     setIsFormOpen(true);
@@ -207,6 +223,8 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  if (loadError) return <div className="min-h-screen bg-background p-6 md:ml-[88px]"><div role="alert" className="rounded-2xl border border-destructive/30 bg-card p-5"><p>{loadError}</p><button type="button" className="touch-btn mt-4 rounded-xl border border-border px-4" onClick={() => void initialize()}>Tentar novamente</button></div><BottomNav /></div>;
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -220,7 +238,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] md:pl-[var(--app-sidebar-width,88px)]">
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
+      <header className="border-b border-border/50 bg-background/90 px-4 py-4 backdrop-blur-xl sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl rounded-2xl border border-border/60 bg-card/90 p-4 shadow-[var(--shadow-sm)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="max-w-xl">
@@ -236,13 +254,15 @@ const Dashboard: React.FC = () => {
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => handleAddTransaction('income')}
-                className="touch-btn rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                aria-pressed={isFormOpen && defaultType === 'income'}
+                className="new-transaction-button touch-btn rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground"
               >
                 Nova receita
               </button>
               <button
                 onClick={() => handleAddTransaction('expense')}
-                className="touch-btn rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                aria-pressed={isFormOpen && defaultType === 'expense'}
+                className="new-transaction-button touch-btn rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium text-foreground"
               >
                 Nova despesa
               </button>
@@ -258,6 +278,17 @@ const Dashboard: React.FC = () => {
       </header>
 
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <section aria-label="Assistente por voz" className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0"><h2 className="font-semibold">Use sua voz</h2><p className="text-sm text-muted-foreground">Prepare um lançamento ou diga “tema escuro”. Você revisa antes de salvar.</p></div>
+            <button type="button" disabled={!isSupported} aria-pressed={isListening} onClick={isListening ? stopListening : startListening} className="touch-btn inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium disabled:opacity-50">
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}{isListening ? 'Parar microfone' : 'Falar com o app'}
+            </button>
+          </div>
+          {!isSupported && <p className="mt-2 text-sm text-muted-foreground">Voz indisponível neste navegador. Use Nova receita ou Nova despesa.</p>}
+          {lastTranscript && <p className="mt-2 text-sm" role="status">Ouvi: {lastTranscript}</p>}
+          <details className="mt-2 text-sm text-muted-foreground"><summary className="cursor-pointer py-2">Como usar a voz</summary><p>Diga “despesa mercado 35,90 reais”, “recebi salário 2000 reais”, “tema claro” ou “tema do sistema”. O microfone só inicia ao tocar no botão; o navegador pode processar o áudio online.</p></details>
+        </section>
         <section className="grid gap-3 md:grid-cols-3">
           {quickCards.map((card) => (
             <div
@@ -312,18 +343,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <Link
-              to="/transactions"
-              className="mt-5 flex items-center justify-between rounded-2xl border border-border/70 px-4 py-4 transition-colors hover:bg-muted/40"
-            >
-              <div>
-                <p className="text-sm font-medium">Ver detalhes do mes</p>
-                <p className="text-sm text-muted-foreground">
-                  Abra a lista completa para ajustar pagamentos, recebimentos e recorrencias.
-                </p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-            </Link>
+
           </motion.div>
 
           <motion.div
@@ -394,26 +414,19 @@ const Dashboard: React.FC = () => {
         </section>
       </main>
 
-      <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => handleAddTransaction('expense')}
-        className="fixed bottom-6 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-      >
-        <Plus className="h-6 w-6" />
-      </motion.button>
 
       <BottomNav />
 
       <TransactionForm
         isOpen={isFormOpen || !!editTransaction}
         onClose={() => {
+          setVoiceDraft(null);
           setIsFormOpen(false);
           setEditTransaction(null);
         }}
         editTransaction={editTransaction}
         defaultType={defaultType}
+        initialDraft={voiceDraft}
       />
     </div>
   );

@@ -17,33 +17,35 @@ const getSystemTheme = (): 'dark' | 'light' => {
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem('app-theme') as Theme;
-    return stored || 'dark';
+    try {
+      const stored = localStorage.getItem('app-theme');
+      return stored === 'light' || stored === 'dark' ? stored : 'system';
+    } catch { return 'system'; }
   });
 
-  const resolvedTheme = theme === 'system' ? getSystemTheme() : theme;
+  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+  const resolvedTheme = theme === 'system' ? systemTheme : theme;
 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolvedTheme);
+    root.style.colorScheme = resolvedTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', resolvedTheme === 'dark' ? '#15131b' : '#fafafa');
   }, [resolvedTheme]);
 
   useEffect(() => {
-    if (theme !== 'system') return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      const root = document.documentElement;
-      root.classList.remove('light', 'dark');
-      root.classList.add(getSystemTheme());
+      setSystemTheme(getSystemTheme());
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
-  }, [theme]);
+  }, []);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem('app-theme', newTheme);
+    try { localStorage.setItem('app-theme', newTheme); } catch { /* Keep the session preference when storage is unavailable. */ }
   };
 
   return (

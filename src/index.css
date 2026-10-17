@@ -6,23 +6,23 @@
 
 @layer base {
   :root {
-    --background: 220 20% 10%;
+    --background: 245 16% 9%;
     --foreground: 220 10% 95%;
 
-    --card: 220 18% 13%;
+    --card: 245 16% 13%;
     --card-foreground: 220 10% 95%;
 
-    --popover: 220 18% 13%;
+    --popover: 245 16% 13%;
     --popover-foreground: 220 10% 95%;
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 220 20% 10%;
+    --primary: 258 78% 76%;
+    --primary-foreground: 250 30% 12%;
 
     --secondary: 220 14% 20%;
     --secondary-foreground: 220 10% 85%;
 
     --muted: 220 14% 18%;
-    --muted-foreground: 220 10% 55%;
+    --muted-foreground: 240 12% 70%;
 
     --accent: 220 14% 22%;
     --accent-foreground: 220 10% 95%;
@@ -30,38 +30,38 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 220 10% 95%;
 
-    --success: 160 84% 39%;
-    --success-foreground: 220 20% 10%;
+    --success: 220 90% 78%;
+    --success-foreground: 220 35% 14%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 220 20% 10%;
 
-    --income: 160 84% 39%;
-    --income-foreground: 220 20% 10%;
+    --income: 220 90% 78%;
+    --income-foreground: 220 35% 14%;
 
-    --expense: 0 72% 51%;
-    --expense-foreground: 220 10% 95%;
+    --expense: 344 74% 78%;
+    --expense-foreground: 344 40% 15%;
 
     --pending: 38 92% 50%;
     --pending-foreground: 220 20% 10%;
 
     --border: 220 14% 22%;
     --input: 220 14% 18%;
-    --ring: 160 84% 39%;
+    --ring: 258 78% 76%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 220 18% 11%;
     --sidebar-foreground: 220 10% 85%;
-    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary: 258 78% 76%;
     --sidebar-primary-foreground: 220 20% 10%;
     --sidebar-accent: 220 14% 18%;
     --sidebar-accent-foreground: 220 10% 95%;
     --sidebar-border: 220 14% 20%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-ring: 258 78% 76%;
 
     /* Gradients */
-    --gradient-income: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(160 84% 30%) 100%);
+    --gradient-income: linear-gradient(135deg, hsl(220 65% 48%) 0%, hsl(235 60% 43%) 100%);
     --gradient-expense: linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 40%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(220 18% 15%) 0%, hsl(220 18% 11%) 100%);
     --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
@@ -70,7 +70,7 @@
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-    --shadow-glow-income: 0 0 20px rgba(34, 197, 94, 0.3);
+    --shadow-glow-income: 0 0 20px rgba(90, 125, 220, 0.2);
     --shadow-glow-expense: 0 0 20px rgba(239, 68, 68, 0.3);
   }
 
@@ -84,7 +84,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 10%;
 
-    --primary: 160 84% 39%;
+    --primary: 258 43% 49%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 92%;
@@ -99,16 +99,16 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 220 58% 43%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 220 20% 10%;
 
-    --income: 160 84% 36%;
+    --income: 220 58% 43%;
     --income-foreground: 0 0% 100%;
 
-    --expense: 0 72% 51%;
+    --expense: 344 44% 44%;
     --expense-foreground: 0 0% 100%;
 
     --pending: 38 92% 50%;
@@ -116,18 +116,18 @@
 
     --border: 220 14% 85%;
     --input: 220 14% 92%;
-    --ring: 160 84% 39%;
+    --ring: 258 43% 49%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 220 10% 30%;
-    --sidebar-primary: 160 84% 39%;
+    --sidebar-primary: 258 43% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 14% 92%;
     --sidebar-accent-foreground: 220 20% 10%;
     --sidebar-border: 220 14% 85%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-ring: 258 43% 49%;
 
-    --gradient-income: linear-gradient(135deg, hsl(160 84% 39%) 0%, hsl(160 84% 30%) 100%);
+    --gradient-income: linear-gradient(135deg, hsl(220 65% 48%) 0%, hsl(235 60% 43%) 100%);
     --gradient-expense: linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 40%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 14% 97%) 100%);
     --gradient-glass: linear-gradient(135deg, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.01) 100%);
@@ -135,12 +135,12 @@
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
-    --shadow-glow-income: 0 0 20px rgba(34, 197, 94, 0.2);
+    --shadow-glow-income: 0 0 20px rgba(90, 125, 220, 0.15);
     --shadow-glow-expense: 0 0 20px rgba(239, 68, 68, 0.2);
   }
 
   .dark {
-    --background: 220 20% 10%;
+    --background: 245 16% 9%;
     --foreground: 220 10% 95%;
   }
 }
@@ -325,4 +325,21 @@
   .skeleton {
     @apply animate-pulse bg-muted/50 rounded;
   }
+}
+
+/* Shared layout: quick preferences, touch targets and the mobile transaction sheet. */
+.app-toolbar { padding-top: env(safe-area-inset-top, 0px); height: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+header.sticky { top: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+button.touch-btn, a.touch-btn { min-height: 44px; }
+.transaction-dialog input, .transaction-dialog select { min-height: 44px; font-size: 16px; }
+.transaction-dialog button { min-height: 44px; }
+.transaction-dialog { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.new-transaction-button[aria-pressed="true"] { background: hsl(var(--primary) / .12); border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
+@media (max-width: 380px) {
+  .app-toolbar { padding-inline: 12px; }
+  .transaction-dialog { max-width: 100vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

@@ -43,6 +43,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
       <input
         type="text"
         inputMode="numeric"
+        aria-label="Valor"
         value={displayValue}
         onChange={handleChange}
         onFocus={handleFocus}

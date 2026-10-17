@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Calendar,
@@ -21,6 +21,7 @@ import type {
   Transaction,
   TransactionType,
 } from '@/types/finance';
+import type { ParsedVoiceCommand } from '@/services/voiceCommandParser';
 import { TransactionUpdateModal } from '@/components/TransactionDeleteModal';
 
 type EndConditionType = 'never' | 'date' | 'occurrences';
@@ -33,6 +34,7 @@ interface TransactionFormProps {
   onClose: () => void;
   editTransaction?: Transaction | null;
   defaultType?: TransactionType;
+  initialDraft?: Extract<ParsedVoiceCommand, { kind: 'transaction' }> | null;
 }
 
 export const TransactionForm: React.FC<TransactionFormProps> = ({
@@ -40,7 +42,30 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   onClose,
   editTransaction,
   defaultType = 'expense',
+  initialDraft,
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  const busyRef = useRef(false);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.querySelector<HTMLInputElement>('input')?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busyRef.current) { event.stopPropagation(); closeRef.current(); }
+      if (event.key !== 'Tab') return;
+      const items = [...dialog.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"]')].filter((item) => !item.hasAttribute('disabled') && item.getClientRects().length > 0);
+      const first = items[0], last = items[items.length - 1];
+      if (!first) return;
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    dialog.addEventListener('keydown', handleKey);
+    return () => { dialog.removeEventListener('keydown', handleKey); previous?.focus(); };
+  }, [isOpen]);
   const categories = useCategories();
   const transactions = useTransactions();
   const {
@@ -75,6 +100,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResolvingScope, setIsResolvingScope] = useState(false);
+  busyRef.current = isSubmitting || isResolvingScope;
 
   const filteredCategories = useMemo(
     () => categories.filter((category) => category.type === type),
@@ -127,8 +153,21 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       setShowCategoryPicker(false);
     } else {
       resetForm();
+      if (isOpen && initialDraft) {
+        setType(initialDraft.type);
+        setTitle(initialDraft.title);
+        // The parser returns the installment price; this form expects the total.
+        setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' ? (initialDraft.installmentCount || 2) : 1));
+        setRecurrenceType(initialDraft.recurrenceType);
+        setInstallments(initialDraft.installmentCount || 2);
+        if (initialDraft.dayOfMonth) {
+          const today = new Date();
+          const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+          setDate(format(new Date(today.getFullYear(), today.getMonth(), Math.min(lastDay, initialDraft.dayOfMonth)), 'yyyy-MM-dd'));
+        }
+      }
     }
-  }, [editTransaction, isOpen, resetForm]);
+  }, [editTransaction, isOpen, resetForm, initialDraft]);
 
   useEffect(() => {
     if (filteredCategories.length === 0) {
@@ -434,7 +473,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4"
+        className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -443,7 +482,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           exit={{ opacity: 0, y: 24, scale: 0.98 }}
           transition={{ type: 'spring', damping: 24, stiffness: 280 }}
           onClick={(event) => event.stopPropagation()}
-          className="absolute bottom-0 left-0 right-0 flex max-h-[96dvh] flex-col overflow-hidden rounded-t-3xl bg-card sm:static sm:max-h-[86vh] sm:w-[min(42rem,calc(100vw-1.5rem))] sm:rounded-3xl"
+          ref={dialogRef} role="dialog" aria-modal="true" aria-label={editTransaction ? 'Editar transacao' : 'Nova transacao'}
+          className="transaction-dialog absolute bottom-0 left-0 right-0 flex max-h-[96dvh] flex-col overflow-hidden rounded-t-3xl bg-card sm:static sm:max-h-[86vh] sm:w-[min(42rem,calc(100vw-1.5rem))] sm:rounded-3xl"
         >
           <div className="sticky top-0 z-30 flex flex-shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3 sm:px-5">
             <h2 className="text-base font-semibold sm:text-lg">
@@ -451,19 +491,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             </h2>
             <div className="flex items-center gap-2">
               <button
-                type="button"
-                onClick={() => handleSubmit()}
-                disabled={!canSave}
-                className={`h-9 rounded-full px-4 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                  type === 'income'
-                    ? 'bg-income text-income-foreground'
-                    : 'bg-expense text-expense-foreground'
-                }`}
-              >
-                {isSubmitting ? 'Salvando...' : 'Salvar'}
-              </button>
-              <button
                 onClick={handleClose}
+                aria-label="Fechar formulário"
                 className="touch-btn flex h-9 w-9 items-center justify-center rounded-full bg-muted"
               >
                 <X className="h-5 w-5" />
@@ -475,6 +504,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
               <button
                 onClick={() => setType('expense')}
+                aria-pressed={type === 'expense'}
                 className={`py-3 rounded-lg font-medium transition-all ${
                   type === 'expense'
                     ? 'bg-expense text-expense-foreground shadow-md'
@@ -485,6 +515,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               </button>
               <button
                 onClick={() => setType('income')}
+                aria-pressed={type === 'income'}
                 className={`py-3 rounded-lg font-medium transition-all ${
                   type === 'income'
                     ? 'bg-income text-income-foreground shadow-md'
@@ -514,6 +545,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 type="text"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
+                aria-label="Descrição"
                 placeholder="Ex: Supermercado"
                 className="w-full rounded-xl border border-border bg-input px-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />

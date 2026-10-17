@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from './useTheme';
+import { parseVoiceTheme } from '@/services/voiceCommandParser';
 import { toast } from 'sonner';
 
 type SpeechRecognitionEventResult = {
@@ -25,6 +27,7 @@ type SpeechRecognitionLike = {
   continuous: boolean;
   start: () => void;
   stop: () => void;
+  abort?: () => void;
   onstart: (() => void) | null;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
@@ -38,10 +41,10 @@ interface VoiceCommandOptions {
 }
 
 export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
+  const { setTheme } = useTheme();
   const [isListening, setIsListening] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
-  const lastTranscriptRef = useRef('');
   const dispatchedRef = useRef(false);
 
   const Recognition = useMemo(() => {
@@ -63,6 +66,7 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
   }, []);
 
   const startListening = useCallback(() => {
+    if (recognitionRef.current) return;
     if (!Recognition) {
       toast.error('Reconhecimento de voz nao esta disponivel neste navegador.');
       return;
@@ -75,7 +79,6 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
     recognition.continuous = false;
 
     setLastTranscript('');
-    lastTranscriptRef.current = '';
     dispatchedRef.current = false;
     recognition.onstart = () => undefined;
 
@@ -97,13 +100,15 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
 
       const transcript = (finalTranscript || interimTranscript).trim();
       if (transcript) {
-        lastTranscriptRef.current = transcript;
         setLastTranscript(transcript);
       }
 
       if (finalTranscript.trim()) {
+        if (dispatchedRef.current) return;
         dispatchedRef.current = true;
-        onTranscript(finalTranscript.trim());
+        const voiceTheme = parseVoiceTheme(finalTranscript);
+        if (voiceTheme) { setTheme(voiceTheme); toast.success('Tema atualizado por voz.'); }
+        else onTranscript(finalTranscript.trim());
       } else if (!transcript) {
         toast.error('Nao consegui entender o comando.');
       }
@@ -128,10 +133,6 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
     };
 
     recognition.onend = () => {
-      if (!dispatchedRef.current && lastTranscriptRef.current) {
-        dispatchedRef.current = true;
-        onTranscript(lastTranscriptRef.current);
-      }
 
       setIsListening(false);
       recognitionRef.current = null;
@@ -139,8 +140,17 @@ export const useVoiceCommand = ({ onTranscript }: VoiceCommandOptions) => {
 
     recognitionRef.current = recognition;
     setIsListening(true);
-    recognition.start();
-  }, [Recognition, onTranscript]);
+    try { recognition.start(); }
+    catch { recognitionRef.current = null; setIsListening(false); toast.error('Microfone indisponível. Tente novamente ou preencha manualmente.'); }
+  }, [Recognition, onTranscript, setTheme]);
+
+  useEffect(() => () => {
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
+    recognition.onresult = null; recognition.onend = null; recognition.onerror = null;
+    if (recognition.abort) recognition.abort(); else recognition.stop();
+    recognitionRef.current = null;
+  }, []);
 
   return {
     isListening,

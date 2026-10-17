@@ -200,6 +200,7 @@ const Auth: React.FC = () => {
                       type="email"
                       value={email}
                       onChange={(event) => clearEmailError(event.target.value)}
+                      aria-label="Email"
                       placeholder="seu@email.com"
                       className={`w-full rounded-xl border bg-input py-3 pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
                         errors.email ? 'border-expense' : 'border-border'
@@ -302,6 +303,7 @@ const Auth: React.FC = () => {
                       type="email"
                       value={email}
                       onChange={(event) => clearEmailError(event.target.value)}
+                      aria-label="Email"
                       placeholder="seu@email.com"
                       className={`w-full rounded-xl border bg-input py-3 pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
                         errors.email ? 'border-expense' : 'border-border'
@@ -321,6 +323,7 @@ const Auth: React.FC = () => {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(event) => clearPasswordError(event.target.value)}
+                      aria-label="Senha"
                       placeholder="********"
                       className={`w-full rounded-xl border bg-input py-3 pl-12 pr-12 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
                         errors.password ? 'border-expense' : 'border-border'

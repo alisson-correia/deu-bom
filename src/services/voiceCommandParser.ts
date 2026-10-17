@@ -80,7 +80,7 @@ const normalize = (value: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const numericPattern = String.raw`\d+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?`;
+const numericPattern = String.raw`\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?`;
 
 const parseNumericToken = (value: string) => {
   const normalized = value.trim();
@@ -245,7 +245,8 @@ export const parseVoiceCommand = (
     normalized.includes('entrada') ||
     normalized.includes('ganho') ||
     normalized.includes('salario') ||
-    normalized.includes('salário');
+    normalized.includes('salário') ||
+    /\b(gastei|paguei|recebi|ganhei)\b/.test(normalized);
 
   if (wantsShopping && !wantsTransaction) {
     const estimatedPrice = parseAmount(transcript);
@@ -279,7 +280,7 @@ export const parseVoiceCommand = (
       normalized.includes('entrada') ||
       normalized.includes('ganho') ||
       normalized.includes('salario') ||
-      normalized.includes('salário')
+      normalized.includes('salário') || /\b(recebi|ganhei)\b/.test(normalized)
         ? 'income'
         : 'expense';
     const amount = parseAmount(transcript);
@@ -313,3 +314,13 @@ export const parseVoiceCommand = (
 
   return null;
 };
+
+
+export function parseVoiceTheme(transcript: string): 'light' | 'dark' | 'system' | null {
+  const text = normalize(transcript);
+  if (!/^(?:(?:mudar|alterar|ativar|usar|mude)(?: para)?\s+)?(?:o\s+|a\s+)?(?:tema|modo|aparencia)\b/.test(text)) return null;
+  if (/\b(escuro|escura)\b/.test(text)) return 'dark';
+  if (/\b(claro|clara)\b/.test(text)) return 'light';
+  if (/\b(sistema|automatico|automatica)\b/.test(text)) return 'system';
+  return null;
+}
