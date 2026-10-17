@@ -388,8 +388,8 @@ const Transactions: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] xl:pl-[var(--app-sidebar-width,88px)]">
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-3 py-2 backdrop-blur-xl sm:px-6 xl:px-8 xl:py-3">
-        <div className="mx-auto max-w-7xl py-1">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 py-4 backdrop-blur-xl">
+        <div className="app-content">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-lg">
               <h1 className="text-xl font-semibold sm:text-2xl">Finanças</h1>
@@ -722,7 +722,7 @@ const Transactions: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-6 xl:space-y-5 xl:px-8 xl:py-5">
+      <main className="app-content space-y-4 py-5 sm:space-y-5 sm:py-6">
         <AnimatePresence>
           {showFilters && (
             <motion.section

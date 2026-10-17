@@ -11,6 +11,11 @@ export type ParsedVoiceCommand =
       installmentCount?: number;
       dayOfMonth?: number;
       date?: string;
+      status?: 'pending' | 'completed';
+      categoryHint?: string;
+      itemDetails?: VoiceItemDetails;
+      paymentSpecified?: boolean;
+      amountIsTotal?: boolean;
     }
   | {
       kind: 'shopping';
@@ -19,7 +24,17 @@ export type ParsedVoiceCommand =
       quantity: number;
       unit: string;
       estimatedPrice: number;
+      itemDetails?: VoiceItemDetails;
     };
+
+export interface VoiceItemDetails {
+  quantity: number;
+  unit: string;
+  packageSize?: string;
+  unitPrice: number;
+  priceBasis: 'unit' | 'total' | 'unknown';
+  summary: string;
+}
 
 interface ParseVoiceCommandOptions {
   preferredKind?: 'transaction' | 'shopping';
@@ -220,6 +235,25 @@ const parseShoppingQuantity = (normalized: string) => {
   };
 };
 
+// Keep package size separate from the number of packages (10 sugars, 1 kg each).
+export function parseVoiceItemDetails(transcript: string): VoiceItemDetails | undefined {
+  let text = normalizeSpokenNumbers(transcript);
+  text = text.replace(new RegExp(`\\b(${spokenPhrasePattern})\\s+(${unitPattern})\\b`, 'g'), (_m, n: string, u: string) => `${spokenNumber(n)} ${u}`)
+    .replace(new RegExp(`^((?:(?:despesa|comprar|comprei|adicionar)\\s+)?)(${spokenPhrasePattern})\\s+`, 'i'), (_m, prefix: string, n: string) => `${prefix}${spokenNumber(n)} `);
+  const count = text.match(new RegExp(`(?:^|\\b(?:despesa|comprar|comprei|adicionar)\\s+)(\\d+(?:[,.]\\d+)?)\\s+(?:(${unitPattern})\\b)?`, 'i'));
+  if (!count) return undefined;
+  const quantity = parseNumericToken(count[1]);
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 100000) return undefined;
+  const packageMatch = text.match(new RegExp(`\\b(\\d+(?:[,.]\\d+)?)\\s+(${unitPattern})\\s+(?:cada|por (?:unidade|pacote))\\b`, 'i'));
+  const packageSize = packageMatch && packageMatch.index! > count.index! + count[0].length - 1 ? `${packageMatch[1]} ${unitAliases[packageMatch[2]]}` : undefined;
+  const unit = count[2] ? unitAliases[count[2]] : 'un';
+  const money = text.match(new RegExp(`(?:r\\s*\\$\\s*(${numericPattern})|(${numericPattern})\\s*(?:reais|real)\\b)`));
+  const unitPrice = money ? parseNumericToken(money[1] || money[2]) : 0;
+  const priceBasis = /\b(?:no total|valor total|total de)\b/.test(text) ? 'total' : /(?:reais|real|r\s*\$|\d)[\s,]*(?:cada(?: um| uma)?|por (?:unidade|quilo|kg|pacote))\b/.test(text) ? 'unit' : 'unknown';
+  return { quantity, unit, packageSize, unitPrice, priceBasis,
+    summary: `${quantity} ${unit}${packageSize ? ` de ${packageSize} cada` : ''}${unitPrice ? ` · R$ ${unitPrice.toFixed(2).replace('.', ',')} ${priceBasis === 'total' ? 'no total' : priceBasis === 'unit' ? 'cada' : '(confirmar se unitário)'}` : ''}` };
+}
+
 const stripPriceFragments = (value: string) =>
   value
     .replace(/\b(?:por|valor|custa|preco|preço)\s*(?:r\s*\$|reais|real)?\s*\d+(?:[,.]\d{1,2})?\b/gi, ' ')
@@ -292,8 +326,11 @@ export const parseVoiceCommand = (
     /\b(gastei|paguei|recebi|ganhei)\b/.test(normalized);
 
   if (wantsShopping && !wantsTransaction) {
-    const estimatedPrice = parseAmount(normalized);
-    const parsedQuantity = parseShoppingQuantity(normalized);
+    const itemDetails = parseVoiceItemDetails(transcript);
+    const hasMoney = /(?:r\s*\$|reais|real|preco|valor|custa|por\s+\d)/.test(normalized);
+    const amount = hasMoney ? parseAmount(normalized) : 0;
+    const estimatedPrice = itemDetails?.priceBasis === 'total' ? Math.round(amount / itemDetails.quantity * 100) / 100 : amount;
+    const parsedQuantity = itemDetails ? {quantity:itemDetails.quantity, unit:itemDetails.unit, raw: normalized.match(/^(?:adicionar\s+)?(?:\d+|\w+)\s+/)?.[0]?.trim() || ''} : parseShoppingQuantity(normalized);
     const withoutPrice = stripPriceFragments(normalized);
     const withoutQuantity = removeFirstOccurrence(withoutPrice, parsedQuantity.raw);
     const name = withoutQuantity
@@ -301,6 +338,7 @@ export const parseVoiceCommand = (
       .replace(/\b(na|no|a|o|os|as|lista|de|do|da|dos|das|compras|compra|mercado|para)\b/g, ' ')
       .replace(new RegExp(`\\b(${unitPattern})\\b`, 'gi'), ' ')
       .replace(/\br\s*\$|\$|reais|real/gi, ' ')
+      .replace(/\b(cada|um|uma|no total|total)\b/g, ' ')
       .replace(/\b\d+(?:[,.]\d{1,2})?\b/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -310,7 +348,8 @@ export const parseVoiceCommand = (
     return {
       kind: 'shopping',
       action: 'add',
-      name,
+      name: `${name}${itemDetails?.packageSize ? ` (${itemDetails.packageSize} cada)` : ''}`,
+      itemDetails,
       quantity: parsedQuantity.quantity,
       unit: parsedQuantity.unit,
       estimatedPrice,
@@ -326,8 +365,10 @@ export const parseVoiceCommand = (
       normalized.includes('salário') || /\b(recebi|ganhei)\b/.test(normalized)
         ? 'income'
         : 'expense';
-    const amount = parseAmount(normalized);
-    const title = cleanTitle(normalized, amount);
+    const itemDetails = parseVoiceItemDetails(transcript);
+    const amount = itemDetails?.unitPrice && itemDetails.priceBasis === 'unit'
+      ? Math.round(itemDetails.unitPrice * itemDetails.quantity * 100) / 100 : itemDetails && !/(?:r\s*\$|reais|real|valor|preco|custa|por\s+\d)/.test(normalized) ? 0 : parseAmount(normalized);
+    const title = cleanTitle(normalized, amount).replace(/\b(cada|um|uma|unidades?|quilos?|kg|a vista|ja pago|pago|paguei|recebido|pendente|a pagar)\b/g, ' ').replace(/r\s*\$|\$|[,;:]/g, ' ').replace(/\s+/g, ' ').trim();
     const dayOfMonth = parseDayOfMonth(normalized);
     const date = parseExplicitDate(normalized);
     if (date === null) return null;
@@ -344,7 +385,7 @@ export const parseVoiceCommand = (
         ? 'subscription'
         : 'none';
 
-    if (!amount || !title) return null;
+    if ((!amount && !itemDetails) || !title) return null;
 
     return {
       kind: 'transaction',
@@ -356,6 +397,11 @@ export const parseVoiceCommand = (
       installmentCount,
       dayOfMonth,
       date,
+      itemDetails,
+      amountIsTotal: Boolean(itemDetails || (installmentCount && !/\b(?:\d+\s*x\s+de|\d+\s+parcelas\s+de|repetir|repete|repetindo)\b/.test(normalized))),
+      categoryHint: /\b(acucar|acucares|arroz|feijao|leite|carne|pao|alimenta[cç]ao|mercado|supermercado)\b/.test(normalized) ? 'Alimentação' : undefined,
+      status: /\b(paguei|ja pago|pago|recebido|recebi|quitado)\b/.test(normalized) ? 'completed' : /\b(pendente|a pagar|vou pagar|a receber)\b/.test(normalized) ? 'pending' : undefined,
+      paymentSpecified: Boolean(installmentCount || isSubscription || /\b(a vista|unica|unico)\b/.test(normalized)),
     };
   }
 

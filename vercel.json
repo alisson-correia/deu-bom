@@ -33,6 +33,9 @@
   "functions": {
     "api/google/*.ts": {
       "maxDuration": 60
+    },
+    "api/import/*.ts": {
+      "maxDuration": 60
     }
   }
 }
