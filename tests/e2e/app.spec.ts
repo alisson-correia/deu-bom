@@ -289,6 +289,7 @@ test('tour contextual completo em cada aba, com foco e possibilidade de reabrir'
     await expect(trigger).toBeFocused();
     await trigger.click();
     await expect(dialog.getByRole('status')).toContainText('Passo 1 de');
+    await expect(dialog.locator('h2[tabindex="-1"]')).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
   }

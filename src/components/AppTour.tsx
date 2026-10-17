@@ -44,7 +44,15 @@ export const AppTour = ({ onStart }: AppTourProps) => {
       </DialogTrigger>
       <DialogPortal>
         <DialogOverlay className="z-[130]" />
-        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[140] flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-y-auto rounded-2xl border border-border bg-card p-5 text-foreground shadow-xl sm:p-6">
+        <DialogPrimitive.Content onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          headingRef.current?.focus();
+        }} onKeyDown={(event) => {
+          if (event.key === 'Escape' && !event.defaultPrevented) {
+            event.preventDefault();
+            setOpen(false);
+          }
+        }} className="fixed left-1/2 top-1/2 z-[140] flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-5 overflow-y-auto rounded-2xl border border-border bg-card p-5 text-foreground shadow-xl sm:p-6">
           <div className="pr-10">
             <DialogTitle className="text-lg font-semibold">{tour.title}</DialogTitle>
             <DialogDescription className="mt-1 text-sm text-muted-foreground">Um guia rápido, sem alterar seus dados.</DialogDescription>
