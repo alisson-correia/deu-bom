@@ -6,7 +6,7 @@ const categories = [
   { id: '33333333-3333-4333-8333-333333333333', user_id: USER, workspace_id: null, name: 'Salário', icon: 'Wallet', color: '#4b70b9', type: 'income' },
 ];
 async function backend(page: Page) {
-  const state = { rows: [] as Record<string, unknown>[], writes: [] as Record<string, unknown>[], failRead: false, failWrite: false, notificationsEnabled: false };
+  const state = { rows: [] as Record<string, unknown>[], writes: [] as Record<string, unknown>[], failRead: false, failWrite: false, notificationsEnabled: false, receiptUploads: 0, attachments: [] as Record<string, unknown>[] };
   const session = { access_token: 'test-token', refresh_token: 'test-refresh', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: USER, email: 'teste@example.com', aud: 'authenticated', role: 'authenticated' } };
   await page.addInitScript(() => localStorage.setItem('deu-bom:pwa-install-dismissed', 'true'));
   await page.route('https://supabase.test/**', async (route) => {
@@ -17,6 +17,16 @@ async function backend(page: Page) {
     if (url.pathname.endsWith('/logout')) return reply({});
     if (url.pathname.endsWith('/profiles')) return reply({ id: USER, current_workspace_id: null, display_name: 'Teste', email: 'teste@example.com', cycle_start_day: 1, currency: 'BRL', locale: 'pt-BR', notifications_enabled: state.notificationsEnabled });
     if (url.pathname.endsWith('/categories')) return reply(categories);
+    if (url.pathname.endsWith('/rpc/import_finance_batch')) {
+      const { batch, target_workspace, receipt } = req.postDataJSON(); state.writes.push(batch);
+      if (state.failWrite) return reply({ message: 'denied' }, 403);
+      const created = batch.filter((item: { id: string }) => !state.rows.some((row) => row.id === item.id)).map((item: Record<string, unknown>) => ({ ...item, user_id: USER, workspace_id: target_workspace, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }));
+      state.rows.push(...created);
+      if (receipt) state.attachments.push(...batch.map((item: { id: string }) => ({ id: crypto.randomUUID(), transaction_id: item.id, user_id: USER, ...receipt })));
+      return reply(created.length);
+    }
+    if (url.pathname.includes('/storage/v1/object/') && req.method() === 'POST') { state.receiptUploads += 1; return reply({ Key: url.pathname.split('/object/')[1] }); }
+    if (url.pathname.endsWith('/transaction_attachments')) return reply(state.attachments);
     if (url.pathname.endsWith('/transactions')) {
       if (req.method() === 'GET') return state.failRead ? reply({ message: 'denied' }, 403) : reply(state.rows);
       const input = req.postDataJSON(); state.writes.push(input);
@@ -336,14 +346,14 @@ test('microfone do cabeçalho respeita a aba e cancela ao abrir ajuda ou navegar
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('cinco unidades de detergente por 5 reais'));
   await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
-  await expect(page.getByLabel('Item', { exact: true })).toHaveValue(/detergente/i);
+  await expect(page.getByText(/detergente · 5 un/)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Confirmar e adicionar', exact: true })).toBeVisible();
   expect(state.writes).toHaveLength(0);
   await page.goto('/analytics');
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('despesa mercado 45 reais'));
   await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
-  await expect(page.getByRole('dialog').getByLabel('Valor', { exact: true })).toHaveValue('45,00');
+  await expect(page.getByRole('dialog').getByLabel('Conferir dados da fala')).toContainText('45,00');
   await page.getByRole('button', { name: 'Fechar formulário' }).click();
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
   await toolbar.getByRole('button', { name: 'Como usar esta tela' }).click();
@@ -387,7 +397,8 @@ test('voz junta frases separadas e aguarda seis segundos de pausa antes de prepa
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.clock.fastForward(1200);
   const dialog = page.getByRole('dialog', { name: 'Nova transacao' });
-  await expect(dialog.getByLabel('Descrição')).toHaveValue('salario');
+  await expect(dialog.getByLabel('Conferir dados da fala')).toContainText('salario');
+  await dialog.getByRole('button', {name:'Editar dados reconhecidos',exact:true}).click();
   await expect(dialog.getByLabel('Valor', { exact: true })).toHaveValue('36.000,00');
   await expect(dialog.locator('input[type="date"]').first()).toHaveValue('2026-11-05');
   expect(state.writes).toHaveLength(0);
@@ -476,4 +487,94 @@ test('lembretes mostram despesas de hoje e próximos vencimentos uma vez por dia
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Visão geral' })).toBeVisible();
   await expect(page.getByText('1 despesa(s) vencem hoje', { exact: true })).toHaveCount(0);
+});
+
+
+test('modelo CSV baixa, mostra parcelas antes de gravar e identifica reimportação', async ({ page }) => {
+  const state = await backend(page); await login(page); await page.goto('/settings');
+  await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Dados', exact: true }).click();
+  const downloadPromise = page.waitForEvent('download'); await page.getByRole('button', { name: 'Baixar modelo CSV', exact: true }).click();
+  const download = await downloadPromise; expect(download.suggestedFilename()).toBe('modelo-importacao.csv');
+  const file = await download.path(); expect(file).toBeTruthy();
+  await page.getByLabel('Arquivo CSV para importar', { exact: true }).setInputFiles(file!);
+  const preview = page.getByLabel('Prévia da importação', { exact: true });
+  await expect(preview).toContainText('8 lançamentos'); await expect(preview).toContainText('Notebook · 6/6');
+  expect(state.writes).toHaveLength(0);
+  await preview.getByRole('button', { name: 'Importar 8 lançamentos', exact: true }).click();
+  await expect(preview).toHaveCount(0); expect(state.rows).toHaveLength(8); expect(state.writes).toHaveLength(1);
+  const installments = state.rows.filter((row) => row.title === 'Notebook'); expect(installments).toHaveLength(6); expect(installments.every((row) => row.amount === 500)).toBe(true);
+  await expect(page.getByRole('button', { name: 'Selecionar planilha', exact: true })).toBeEnabled();
+  await page.getByLabel('Arquivo CSV para importar', { exact: true }).setInputFiles(file!);
+  await expect(preview).toContainText('8 possíveis duplicados'); await expect(preview.getByRole('button', { name: 'Importar 0 lançamentos', exact: true })).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('texto de planilha valida linhas e preserva prévia após recusa de gravação', async ({ page }) => {
+  const state = await backend(page); await login(page); await page.goto('/settings');
+  await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Dados', exact: true }).click();
+  await page.getByText('Colar linhas da planilha', { exact: true }).click();
+  await page.getByLabel('Cole as colunas com cabeçalho', { exact: false }).fill('Data;Descricao;Tipo;Valor\n2026-02-31;Inválido;Despesa;10');
+  await page.getByRole('button', { name: 'Revisar texto colado', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Linha 2'); expect(state.writes).toHaveLength(0);
+  await page.getByLabel('Cole as colunas com cabeçalho', { exact: false }).fill('Data;Descricao;Tipo;Valor\n2026-11-10;Conta de teste;Despesa;100,00');
+  await page.getByRole('button', { name: 'Revisar texto colado', exact: true }).click(); state.failWrite = true;
+  await page.getByRole('button', { name: 'Importar 1 lançamento', exact: true }).click(); await expect(page.getByRole('alert')).toBeVisible(); expect(state.rows).toHaveLength(0);
+  await expect(page.getByLabel('Prévia da importação', { exact: true })).toBeVisible(); state.failWrite = false;
+  await page.getByRole('button', { name: 'Importar 1 lançamento', exact: true }).click(); await expect(page.getByLabel('Prévia da importação', { exact: true })).toHaveCount(0); expect(state.rows).toHaveLength(1);
+});
+
+test('PDF e IA preparam parcelas para revisão e anexam somente após confirmar', async ({ page }) => {
+  const state = await backend(page); const { PDFDocument } = await import('pdf-lib'); const pdf = await PDFDocument.create(); pdf.addPage();
+  await page.route('**/api/import/extract', async (route) => {
+    expect(route.request().headers().authorization).toBe('Bearer test-token'); expect(route.request().postDataJSON().file.type).toBe('application/pdf');
+    return route.fulfill({ json: { items: [{ title: 'Notebook PDF', amount: 500, amountKind: 'per_installment', type: 'expense', date: '2026-11-10', installments: 6, installmentNumber: 1, status: 'pending', category: '', notes: '', warnings: [] }], warnings: [] } });
+  });
+  await login(page); await page.goto('/settings'); await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Dados', exact: true }).click();
+  await page.getByText('Foto, PDF ou texto livre', { exact: true }).click();
+  await page.getByLabel('Comprovante foto ou PDF', { exact: true }).setInputFiles({ name: 'comprovante.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pdf.save()) });
+  await expect(page.getByText('Guardar comprovante privado nos lançamentos importados', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Analisar com IA', exact: true }).click();
+  await expect(page.getByLabel('Valor total em R$', { exact: true })).toHaveValue('3000,00'); expect(state.writes).toHaveLength(0); expect(state.receiptUploads).toBe(0);
+  await page.getByRole('button', { name: 'Gerar prévia dos lançamentos', exact: true }).click();
+  await expect(page.getByLabel('Prévia da importação', { exact: true })).toContainText('6 lançamentos'); expect(state.writes).toHaveLength(0);
+  await page.getByRole('button', { name: 'Importar 6 lançamentos', exact: true }).click();
+  await expect(page.getByLabel('Prévia da importação', { exact: true })).toHaveCount(0); expect(state.rows).toHaveLength(6); expect(state.attachments).toHaveLength(6); expect(state.receiptUploads).toBe(1);
+});
+
+test('falha da leitura automática permite cadastro manual com comprovante', async ({ page }) => {
+  const state = await backend(page); const { PDFDocument } = await import('pdf-lib'); const pdf = await PDFDocument.create(); pdf.addPage();
+  await page.route('**/api/import/extract', route => route.fulfill({ status: 503, json: { error: 'Leitura automática indisponível. Preencha manualmente.', code: 'ai_billing_required' } }));
+  await login(page); await page.goto('/settings'); await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Dados', exact: true }).click();
+  await page.getByText('Foto, PDF ou texto livre', { exact: true }).click(); await page.getByLabel('Comprovante foto ou PDF', { exact: true }).setInputFiles({ name: 'recibo.pdf', mimeType: 'application/pdf', buffer: Buffer.from(await pdf.save()) });
+  await page.getByRole('button', { name: 'Analisar com IA', exact: true }).click(); await expect(page.getByRole('alert')).toContainText('Preencha manualmente'); expect(state.writes).toHaveLength(0);
+  await page.getByRole('button', { name: 'Preencher manualmente', exact: true }).click();
+  const item = page.getByRole('group', { name: 'Item 1', exact: true }); await item.getByLabel('Descrição', { exact: true }).fill('Recibo manual'); await item.getByLabel('Data de vencimento ou recebimento', { exact: true }).fill('2026-11-10'); await item.getByLabel('Valor total em R$', { exact: true }).fill('75,50'); await item.getByLabel('Tipo', { exact: true }).selectOption('Despesa');
+  await page.getByRole('button', { name: 'Gerar prévia dos lançamentos', exact: true }).click(); await page.getByRole('button', { name: 'Importar 1 lançamento', exact: true }).click();
+  await expect(page.getByLabel('Prévia da importação', { exact: true })).toHaveCount(0); expect(state.rows[0].amount).toBe(75.5); expect(state.attachments).toHaveLength(1);
+});
+
+test('erro de API Google desativada mostra orientação e desaparece após sincronização', async ({ page }) => {
+  await backend(page); let disabled = true;
+  await page.route('**/api/google/**', route => {
+    if (route.request().url().endsWith('/status')) return route.fulfill({ json: { configured: true, connected: true } });
+    if (disabled) return route.fulfill({ status: 403, json: { error: 'A conta está conectada, mas a API Google Tasks está desativada no projeto do aplicativo.', code: 'google_tasks_disabled', actionUrl: 'https://console.cloud.google.com/apis/library/tasks.googleapis.com' } });
+    return route.fulfill({ json: { processed: 0, completed: 0, updated: 0, remaining: 0, errors: 0 } });
+  });
+  await login(page); await page.goto('/settings'); await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Agenda', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('API Google Tasks está desativada'); await expect(page.getByRole('link', { name: 'Abrir configuração da API no Google Cloud', exact: true })).toHaveAttribute('href', 'https://console.cloud.google.com/apis/library/tasks.googleapis.com');
+  disabled = false; await expect(page.getByRole('button', { name: 'Sincronizar agora', exact: true })).toBeEnabled(); await page.getByRole('button', { name: 'Sincronizar agora', exact: true }).click(); await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+
+test('voz calcula quantidade e embalagem e pede apenas confirmação quando os dados estão completos', async ({ page }) => {
+ await voice(page); const state = await backend(page); await login(page);
+ await page.getByRole('button',{name:'Falar com o app',exact:true}).click();
+ await page.evaluate(()=> (window as unknown as {sendVoice:(text:string)=>void}).sendVoice('despesa 10 açúcares, 1 quilo cada, R$50 cada um à vista pago dia 10/11/2026'));
+ await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Nova transacao'}); const review=dialog.getByLabel('Conferir dados da fala');
+ await expect(review).toContainText('500,00'); await expect(review).toContainText('10 un de 1 kg cada'); await expect(review).toContainText('Mercado');
+ await expect(dialog.getByLabel('Descrição')).toBeHidden(); await expect(review.getByRole('combobox')).toHaveCount(0); expect(state.writes).toHaveLength(0);
+ await dialog.getByRole('button',{name:'Salvar',exact:true}).click(); await expect(dialog).toHaveCount(0);
+ expect(state.rows).toHaveLength(1); expect(state.rows[0]).toMatchObject({amount:500,status:'completed',date:'2026-11-10',category_id:categories[0].id}); expect(state.rows[0].notes).toContain('10 un de 1 kg cada');
+ await page.getByRole('button',{name:'Falar com o app',exact:true}).click(); await page.evaluate(()=> (window as unknown as {sendVoice:(text:string)=>void}).sendVoice('despesa açúcar 50 reais')); await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
+ await expect(dialog.getByLabel('Data que faltou na fala')).toBeVisible(); await expect(dialog.getByRole('button',{name:'Salvar',exact:true})).toBeDisabled();
 });

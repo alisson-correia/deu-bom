@@ -1,6 +1,7 @@
 import { ArrowRight, BarChart3, Home, KanbanSquare, PartyPopper, PiggyBank, Settings, ShoppingCart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
+import { PageIntro } from '@/components/PageIntro';
 import { BottomNav } from '@/components/BottomNav';
 
 const sections = [
@@ -10,14 +11,14 @@ const sections = [
   { to: '/festometro', label: 'Festômetro', description: 'Planeje eventos e acompanhe seus custos', icon: PartyPopper },
   { to: '/budgets', label: 'Metas', description: 'Organize suas próximas compras', icon: PiggyBank },
   { to: '/analytics', label: 'Análise', description: 'Gráficos e comparação de períodos', icon: BarChart3 },
-  { to: '/settings', label: 'Configurações', description: 'Perfil, equipe, aparência e preferências', icon: Settings },
+  { to: '/settings', label: 'Configurações', description: 'Conta, equipe, aparência, agenda e dados', icon: Settings },
 ];
 
 export default function More() {
-  return <AppShell mainClassName="max-w-3xl">
-    <header><h1 className="text-2xl font-semibold tracking-tight">Mais opções</h1><p className="mt-2 text-sm text-muted-foreground">Todas as áreas do app, em um só lugar.</p></header>
-    <nav aria-label="Todas as áreas" className="overflow-hidden rounded-2xl border border-border bg-card">
-      {sections.map((item) => <Link key={item.to} to={item.to} className="flex min-h-[76px] items-center gap-3 border-b border-border px-4 py-3 last:border-0 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">
+  return <AppShell>
+    <PageIntro eyebrow="Navegação" title="Mais opções" description="Todas as áreas do app, em um só lugar." />
+    <nav aria-label="Todas as áreas" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {sections.map((item) => <Link key={item.to} to={item.to} className="flex min-h-[84px] min-w-0 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 hover:border-primary/30 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:last:col-span-2 xl:last:col-span-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><item.icon aria-hidden="true" className="h-5 w-5" /></span>
         <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{item.label}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.description}</span></span>
         <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" />

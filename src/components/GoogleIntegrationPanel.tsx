@@ -2,7 +2,7 @@ import { CalendarDays, CheckCircle2, Link2, Loader2, RefreshCw, Unplug } from 'l
 import { useGoogleIntegration } from '@/hooks/useGoogleIntegration';
 
 export const GoogleIntegrationPanel = () => {
-  const { configured, connected, accountEmail, syncAt, loading, busy, pending, connect, disconnect, sync } = useGoogleIntegration();
+  const { configured, connected, accountEmail, syncAt, loading, busy, pending, problem, connect, disconnect, sync } = useGoogleIntegration();
   const date = syncAt ? new Date(syncAt) : null;
   const syncLabel = date && !Number.isNaN(date.getTime()) ? date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : null;
   const callbackError = new URLSearchParams(window.location.search).get('google') === 'error';
@@ -28,8 +28,9 @@ export const GoogleIntegrationPanel = () => {
         <button type="button" disabled={!configured || busy} onClick={() => void connect()} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"><Link2 aria-hidden="true" className="h-4 w-4" />{busy ? 'Conectando...' : 'Conectar Google'}</button>
       </>}
     </div>
+    {problem && <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm"><p>{problem.message}</p>{problem.actionUrl?.startsWith('https://console.cloud.google.com/apis/library/') && <a href={problem.actionUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex min-h-11 items-center text-primary underline">Abrir configuração da API no Google Cloud</a>}</div>}
     <ul className="space-y-3 text-sm leading-6 text-muted-foreground">
-      <li>Cada lançamento é representado por uma tarefa e um evento de lembrete que não bloqueia sua disponibilidade: despesas em vermelho e receitas em verde.</li>
+      <li>A primeira sincronização inclui os lançamentos já existentes no contexto atual. Cada lançamento é representado por uma tarefa e um evento de lembrete que não bloqueia sua disponibilidade: despesas em vermelho e receitas em verde.</li>
       <li>Os lembretes são planejados para um dia antes e para o dia do lançamento, às 9h no fuso escolhido ao conectar. A exibição das notificações depende das permissões do Google e do dispositivo.</li>
       <li>Ao concluir uma tarefa no Google, a situação é atualizada no app na próxima sincronização: ao abrir, voltar à tela ou a cada minuto com o app visível.</li>
     </ul>

@@ -13,12 +13,15 @@ interface GoogleStatus {
   state?: string;
 }
 
+interface SyncProblem { message: string; actionUrl?: string }
+
 interface SyncResult {
   processed: number;
   remaining: number;
   completed: number;
   updated: number;
   errors: number;
+  issues?: SyncProblem[];
   syncAt?: string;
 }
 
@@ -26,6 +29,7 @@ interface GoogleIntegrationContextValue extends GoogleStatus {
   loading: boolean;
   busy: boolean;
   pending: number;
+  problem: SyncProblem | null;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
   sync: (manual?: boolean) => Promise<void>;
@@ -35,7 +39,7 @@ const GoogleIntegrationContext = createContext<GoogleIntegrationContextValue | u
 const unavailable: GoogleStatus = { configured: false, connected: false };
 
 class GoogleRequestError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public actionUrl?: string) { super(message); }
 }
 
 interface IntegrationScope {
@@ -54,6 +58,7 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
   const [loading, setLoading] = useState(Boolean(userId));
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(0);
+  const [problem, setProblem] = useState<SyncProblem | null>(null);
   const scopeKey = `${userId ?? 'signed-out'}:${currentWorkspace?.id ?? 'personal'}`;
   const tokenRef = useRef({ userId: session?.user.id, value: session?.access_token });
   tokenRef.current = { userId: session?.user.id, value: session?.access_token };
@@ -71,6 +76,7 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
     statusRef.current = unavailable;
     setStatus(unavailable);
     setPending(0);
+    setProblem(null);
     setBusy(false);
     setLoading(Boolean(userId));
     previousSignature.current = '';
@@ -91,7 +97,10 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
       signal: scope.controller.signal,
       cache: 'no-store',
     });
-    if (!response.ok) throw new GoogleRequestError(response.status, response.status === 429 ? 'A sincronização já está em andamento. Tente novamente em instantes.' : 'Não foi possível acessar a integração Google. Tente novamente.');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({})) as { error?: string; actionUrl?: string };
+      throw new GoogleRequestError(response.status, error.error || (response.status === 429 ? 'A sincronização já está em andamento. Tente novamente em instantes.' : 'Não foi possível acessar a integração Google. Tente novamente.'), error.actionUrl);
+    }
     if (!response.headers.get('content-type')?.includes('application/json')) throw new GoogleRequestError(503, 'Integração aguardando configuração.');
     const result = await response.json() as T;
     if (!isCurrent(scope)) throw new DOMException("Integração cancelada", "AbortError");
@@ -117,12 +126,14 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
     let changed = 0;
     let errors = 0;
     let remaining = 0;
+    let issue: SyncProblem | null = null;
     try {
       for (let batch = 0; batch < 10; batch += 1) {
         const result = await request<SyncResult>(scope, 'sync', 'POST', { workspaceId: scope.workspaceId });
         if (!isCurrent(scope)) return;
         changed += Number(result.completed || 0) + Number(result.updated || 0);
         errors += Number(result.errors || 0);
+        issue = result.issues?.[0] || issue;
         remaining = Number(result.remaining || 0);
         setPending(remaining);
         setStatus((previous) => ({ ...previous, syncAt: result.syncAt ?? previous.syncAt }));
@@ -132,13 +143,18 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
       if (changed > 0) await useFinanceStore.getState().refreshData();
       if (!isCurrent(scope)) return;
       previousSignature.current = JSON.stringify(useFinanceStore.getState().transactions.map((item) => [item.id, item.status, item.updatedAt, item.title, item.amount, item.date]).sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
+      setProblem(errors > 0 ? issue || { message: 'Alguns itens não foram sincronizados. Tente novamente.' } : null);
       if (manual && isCurrent(scope)) {
         if (errors > 0) toast.warning('Alguns itens não foram sincronizados. Tente novamente.');
         else if (remaining > 0) toast.info('Ainda há itens pendentes. Toque em Sincronizar agora para continuar.');
         else toast.success('Agenda sincronizada.');
       }
     } catch (error) {
-      if (isCurrent(scope) && manual) toast.error(error instanceof Error ? error.message : 'Não foi possível sincronizar a agenda.');
+      if (isCurrent(scope)) {
+        const next = { message: error instanceof Error ? error.message : 'Não foi possível sincronizar a agenda.', actionUrl: error instanceof GoogleRequestError ? error.actionUrl : undefined };
+        setProblem(next);
+        if (manual) toast.error(next.message);
+      }
     } finally {
       scope.busy = false;
       if (isCurrent(scope)) setBusy(false);
@@ -201,7 +217,7 @@ export const GoogleIntegrationProvider = ({ children }: { children: ReactNode })
     }
   }, [request, isCurrent]);
 
-  return <GoogleIntegrationContext.Provider value={{ ...status, loading, busy, pending, connect, disconnect, sync }}>{children}</GoogleIntegrationContext.Provider>;
+  return <GoogleIntegrationContext.Provider value={{ ...status, loading, busy, pending, problem, connect, disconnect, sync }}>{children}</GoogleIntegrationContext.Provider>;
 };
 
 export const useGoogleIntegration = () => {

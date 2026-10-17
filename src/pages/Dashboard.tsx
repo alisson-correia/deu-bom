@@ -58,7 +58,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] xl:pl-[var(--app-sidebar-width,88px)]">
-      <main className="mx-auto max-w-4xl space-y-5 px-4 py-5 sm:px-6 sm:py-8">
+      <main className="app-content space-y-5 py-5 sm:py-6">
         <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold tracking-tight">Visão geral</h1>
           <MonthSwitcher selectedMonth={selectedMonth} onChange={handleMonthChange} className="gap-3 sm:w-72" />

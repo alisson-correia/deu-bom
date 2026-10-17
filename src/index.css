@@ -329,6 +329,11 @@
   }
 }
 
+/* One centered content grid for page headers, cards and global tools. */
+.app-content { width: 100%; max-width: 1440px; margin-inline: auto; padding-inline: 1rem; }
+@media (min-width: 640px) { .app-content { padding-inline: 1.5rem; } }
+@media (min-width: 1280px) { .app-content { padding-inline: 2rem; } }
+
 /* Shared layout: quick preferences, touch targets and the mobile transaction sheet. */
 .app-toolbar { padding-top: env(safe-area-inset-top, 0px); height: calc(3.5rem + env(safe-area-inset-top, 0px)); }
 header.sticky { top: calc(3.5rem + env(safe-area-inset-top, 0px)); }
@@ -345,7 +350,6 @@ button.touch-btn, a.touch-btn { min-height: 44px; }
 }
 .new-transaction-button[aria-pressed="true"] { background: hsl(var(--primary) / .12); border-color: hsl(var(--primary)); color: hsl(var(--primary)); }
 @media (max-width: 380px) {
-  .app-toolbar { padding-inline: 12px; }
   .transaction-dialog { max-width: 100vw; }
 }
 @media (prefers-reduced-motion: reduce) {

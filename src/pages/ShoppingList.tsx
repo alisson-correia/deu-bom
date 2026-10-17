@@ -65,6 +65,7 @@ const ShoppingList: React.FC = () => {
   const [estimatedPriceInput, setEstimatedPriceInput] = useState('');
   const [voiceDraft, setVoiceDraft] = useState<ShoppingVoiceDraft | null>(null);
   const [voicePrompt, setVoicePrompt] = useState('');
+  const [editVoice, setEditVoice] = useState(false);
 
   useEffect(() => {
     setItems(loadItems());
@@ -137,6 +138,7 @@ const ShoppingList: React.FC = () => {
       return;
     }
 
+    setEditVoice(false);
     setVoicePrompt('Confira os dados antes de adicionar na lista.');
     setVoiceDraft({
       name: command.name,
@@ -210,8 +212,8 @@ const ShoppingList: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pb-[calc(var(--app-bottom-nav-height,0px)+1rem+env(safe-area-inset-bottom,0px))] xl:pl-[var(--app-sidebar-width,88px)]">
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl py-1">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/90 py-4 backdrop-blur-xl">
+        <div className="app-content">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-semibold sm:text-2xl">Lista de compras</h1>
@@ -251,6 +253,9 @@ const ShoppingList: React.FC = () => {
 
               {voiceDraft ? (
                 <div className="mt-3 space-y-2">
+                  <p className="break-words text-sm font-medium">{voiceDraft.name} · {voiceDraft.quantity} {voiceDraft.unit}{voiceDraft.estimatedPrice !== null ? ` · ${formatCurrency(voiceDraft.estimatedPrice)} cada` : ''}</p>
+                  <button type="button" onClick={()=>setEditVoice(v=>!v)} className="min-h-11 text-sm text-primary underline">{editVoice ? 'Voltar à conferência' : 'Editar dados reconhecidos'}</button>
+                  <div hidden={!editVoice}>
                   <label className="block text-xs text-muted-foreground">
                     Item
                     <input
@@ -315,6 +320,8 @@ const ShoppingList: React.FC = () => {
                     </label>
                   </div>
 
+                  </div>
+                  {!editVoice && voiceDraft.estimatedPrice === null && <label className="block text-sm">Preço por unidade (opcional)<input aria-label="Preço que faltou na fala" type="number" min="0" step="0.01" value={voiceDraft.estimatedPrice ?? ''} onChange={event=>setVoiceDraft(current=>current?{...current,estimatedPrice:parseOptionalPrice(event.target.value)}:current)} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3"/></label>}
                   <div className="rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                     Total:{' '}
                     {voiceDraft.estimatedPrice === null
@@ -351,7 +358,7 @@ const ShoppingList: React.FC = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl space-y-4 px-4 py-5 sm:px-6 lg:px-8">
+      <main className="app-content space-y-4 py-5 sm:py-6">
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-sm)]"

@@ -23,6 +23,7 @@ import type {
   TransactionType,
 } from '@/types/finance';
 import type { ParsedVoiceCommand } from '@/services/voiceCommandParser';
+import { TransactionReceipts } from '@/components/TransactionReceipts';
 import { TransactionUpdateModal } from '@/components/TransactionDeleteModal';
 
 type EndConditionType = 'never' | 'date' | 'occurrences';
@@ -95,6 +96,10 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
   const [installments, setInstallments] = useState(2);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showAdvancedFields, setShowAdvancedFields] = useState(true);
+  const [editVoiceFields, setEditVoiceFields] = useState(false);
+  const voiceReview = Boolean(initialDraft && !editTransaction && !editVoiceFields);
+  const foodCategory = initialDraft?.categoryHint ? categories.find(c => c.type === initialDraft.type && ['alimentacao','mercado','supermercado'].includes(c.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase())) : undefined;
+  const foodCategoryId = foodCategory?.id;
   const [showUpdateScopeModal, setShowUpdateScopeModal] = useState(false);
   const [pendingUpdateData, setPendingUpdateData] =
     useState<Record<string, unknown> | null>(null);
@@ -125,6 +130,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     setOccurrences(12);
     setEndDate(format(addMonths(new Date(), 12), 'yyyy-MM-dd'));
     setShowCategoryPicker(false);
+    setEditVoiceFields(false);
     setShowAdvancedFields(true);
     setShowUpdateScopeModal(false);
     setPendingUpdateData(null);
@@ -157,9 +163,13 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       resetForm();
       if (isOpen && initialDraft) {
         setType(initialDraft.type);
+        setStatus(initialDraft.status || 'pending');
+        setDate(initialDraft.date || (initialDraft.dayOfMonth ? format(new Date(new Date().getFullYear(),new Date().getMonth(), Math.min(initialDraft.dayOfMonth,new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate())), 'yyyy-MM-dd') : ''));
+        setNotes(initialDraft.itemDetails?.summary || '');
+        if (foodCategoryId) setCategoryId(foodCategoryId);
         setTitle(initialDraft.title);
         // The parser returns the installment price; this form expects the total.
-        setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' ? (initialDraft.installmentCount || 2) : 1));
+        setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' && !initialDraft.itemDetails ? (initialDraft.installmentCount || 2) : 1));
         setRecurrenceType(initialDraft.recurrenceType);
         setInstallments(initialDraft.installmentCount || 2);
         if (initialDraft.date) {
@@ -171,7 +181,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         }
       }
     }
-  }, [editTransaction, isOpen, resetForm, initialDraft]);
+  }, [editTransaction, isOpen, resetForm, initialDraft, foodCategoryId]);
 
   useEffect(() => {
     if (filteredCategories.length === 0) {
@@ -266,9 +276,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
       title,
       amount,
       type,
-      status: editTransaction
-        ? status
-        : ('pending' as const),
+      status: editTransaction || initialDraft ? status : ('pending' as const),
       categoryId,
       date,
       notes,
@@ -456,7 +464,12 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     toast.success('Abrindo Google Agenda...');
   };
 
-  const canSave = Boolean(title && amount && categoryId && !isSubmitting && !isResolvingScope);
+  const [voiceStatusConfirmed, setVoiceStatusConfirmed] = useState(false);
+  const [voicePriceConfirmed,setVoicePriceConfirmed] = useState(false);
+  const ambiguousVoicePrice = Boolean(initialDraft?.itemDetails?.unitPrice && initialDraft.itemDetails.quantity > 1 && initialDraft.itemDetails.priceBasis === 'unknown');
+  useEffect(()=>setVoicePriceConfirmed(false),[initialDraft]);
+  useEffect(() => setVoiceStatusConfirmed(Boolean(initialDraft?.status)), [initialDraft]);
+  const canSave = Boolean(title && amount && date && categoryId && (!initialDraft || voiceStatusConfirmed) && (!ambiguousVoicePrice || voicePriceConfirmed) && !isSubmitting && !isResolvingScope);
 
   const applySuggestedCategory = () => {
     if (!suggestedCategoryId) return;
@@ -505,6 +518,20 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto px-4 pb-28 pt-4 sm:px-5 sm:pb-6">
+            {initialDraft && !editTransaction && <section aria-label="Conferir dados da fala" className="mb-5 space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+              <p className="font-semibold">Confira e confirme</p>
+              <p className="break-words text-sm">{title} · {amount.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</p>
+              {initialDraft.itemDetails && <p className="text-sm text-muted-foreground">{initialDraft.itemDetails.summary}</p>}
+              <p className="text-sm text-muted-foreground">{selectedCategory?.name || 'Categoria a definir'} · {date ? date.split('-').reverse().join('/') : 'Data a definir'} · {recurrenceType === 'installment' ? `${installments} parcelas` : recurrenceType === 'subscription' ? 'Recorrente' : 'Pagamento único'}{voiceStatusConfirmed ? ` · ${status === 'completed' ? 'Confirmado' : 'Pendente'}` : ''}</p>
+              {!initialDraft.amount && <div><p className="mb-1 text-sm">Qual o valor total?</p><CurrencyInput value={amount} onChange={setAmount}/></div>}
+              {ambiguousVoicePrice && <label className="block text-sm">O valor informado é por unidade ou o total?<select aria-label="Confirmar valor da fala" defaultValue="" onChange={e=>{const detail=initialDraft.itemDetails!;setVoicePriceConfirmed(Boolean(e.target.value));setAmount(Math.round(detail.unitPrice*(e.target.value==='unit'?detail.quantity:1)*100)/100);}} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3"><option value="">Escolha</option><option value="unit">Por unidade</option><option value="total">Valor total</option></select></label>}
+              {!initialDraft.status && <label className="block text-sm">Já foi pago ou recebido?<select aria-label="Situação do lançamento por voz" value={voiceStatusConfirmed ? status : ''} onChange={e => {setStatus(e.target.value as 'pending'|'completed');setVoiceStatusConfirmed(Boolean(e.target.value));}} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3"><option value="">Escolha</option><option value="pending">Ainda pendente</option><option value="completed">Já pago ou recebido</option></select></label>}
+              {voiceReview && !initialDraft.date && !initialDraft.dayOfMonth && <label className="block text-sm">Qual a data?<input aria-label="Data que faltou na fala" type="date" value={date} onChange={e=>setDate(e.target.value)} className="mt-1 h-11 w-full min-w-0 rounded-xl border border-border bg-background px-3"/></label>}
+              {voiceReview && !foodCategory && <label className="block text-sm">Confirme a categoria<select aria-label="Categoria da fala" value={categoryId} onChange={e=>setCategoryId(e.target.value)} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3">{filteredCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+              {voiceReview && !initialDraft.paymentSpecified && <label className="block text-sm">Como será o pagamento?<select aria-label="Forma de pagamento da fala" value={recurrenceType} onChange={e=>{setRecurrenceType(e.target.value as RecurrenceType);if(e.target.value !== 'none')setEditVoiceFields(true);}} className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3"><option value="none">À vista / pagamento único</option><option value="installment">Parcelado</option><option value="subscription">Recorrente</option></select></label>}
+              <button type="button" onClick={()=>setEditVoiceFields(v=>!v)} className="min-h-11 text-sm font-medium text-primary underline">{editVoiceFields ? 'Voltar à conferência' : 'Editar dados reconhecidos'}</button>
+            </section>}
+            <div hidden={voiceReview}>
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
               <button
                 onClick={() => setType('expense')}
@@ -964,6 +991,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 </div>
               </div>
             ) : null}
+
+            </div>
+            {editTransaction && <TransactionReceipts transactionId={editTransaction.id} />}
 
             {editTransaction &&
             editTransaction.installmentNumber &&

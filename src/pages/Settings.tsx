@@ -31,6 +31,7 @@ import { useFinanceStore, useSettings } from '@/stores/financeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { GoogleIntegrationPanel } from '@/components/GoogleIntegrationPanel';
+import { SpreadsheetImportPanel, downloadCsv, csvDocument } from '@/components/SpreadsheetImportPanel';
 import { AccentColorPicker } from '@/components/AccentColorPicker';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { supabase } from '@/integrations/supabase/client';
@@ -181,16 +182,7 @@ const Settings: React.FC = () => {
       ];
     });
 
-    const csv = [headers, ...rows].map((row) => row.join(';')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `financas-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
+    downloadCsv(csvDocument([headers, ...rows]), `financas-${new Date().toISOString().split('T')[0]}.csv`);
     toast.success('CSV exportado com sucesso.');
   };
 
@@ -213,28 +205,6 @@ const Settings: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
-
-  const handleDownloadTemplate = () => {
-    const headers = ['Data', 'Descricao', 'Categoria', 'Tipo', 'Valor', 'Status'];
-    const exampleRows = [
-      ['2025-01-15', 'Salario', 'Salario', 'Receita', '5000,00', 'Concluido'],
-      ['2025-01-16', 'Supermercado', 'Alimentacao', 'Despesa', '350,50', 'Concluido'],
-      ['2025-01-20', 'Conta de Luz', 'Contas', 'Despesa', '180,00', 'Pendente'],
-      ['2025-01-25', 'Freelance', 'Renda Extra', 'Receita', '1200,00', 'Pendente'],
-    ];
-
-    const csv = [headers, ...exampleRows].map((row) => row.join(';')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'modelo-importacao.csv';
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-    toast.success('Modelo baixado com sucesso.');
   };
 
   const handleStartEditWorkspaceName = () => {
@@ -428,7 +398,7 @@ const Settings: React.FC = () => {
             aria-pressed={activeSection === section.id}
             aria-controls="settings-active-section"
             onClick={() => setActiveSection(section.id)}
-            className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeSection === section.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+            className={`inline-flex min-h-12 min-w-0 items-center justify-start gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors last:col-span-2 sm:justify-center sm:last:col-span-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${activeSection === section.id ? 'border-primary/30 bg-primary/10 text-primary' : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'}`}
           >
             <section.icon aria-hidden="true" className="h-4 w-4 shrink-0" />
             {section.label}
@@ -752,6 +722,7 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="space-y-3 p-5">
+              {user && <SpreadsheetImportPanel userId={user.id} workspaceId={currentWorkspace?.id || null} canImport={!currentWorkspace || userRole === 'owner' || userRole === 'editor'} />}
               {[
                 {
                   label: 'Exportar JSON',
@@ -766,13 +737,7 @@ const Settings: React.FC = () => {
                   onClick: handleExportCSV,
                 },
                 {
-                  label: 'Baixar modelo',
-                  description: 'Arquivo base para importar seus dados com menos erro.',
-                  icon: FileSpreadsheet,
-                  onClick: handleDownloadTemplate,
-                },
-                {
-                  label: 'Importar dados',
+                  label: 'Importar backup JSON',
                   description: 'Traz um arquivo JSON ja estruturado para dentro do app.',
                   icon: Upload,
                   onClick: () => fileInputRef.current?.click(),

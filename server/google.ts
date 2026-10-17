@@ -18,7 +18,7 @@ type Link = {
   google_updated_at: string | null; last_synced_at: string;
 };
 type GoogleTask = { id: string; title?: string; notes?: string; status: string; updated: string; deleted?: boolean; webViewLink?: string };
-class ApiError extends Error { constructor(public status: number, message: string) { super(message); } }
+class ApiError extends Error { constructor(public status: number, message: string, public code?: string, public actionUrl?: string) { super(message); } }
 const projectUrl = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const encryptionKey = () => process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || '';
 const origin = () => process.env.PUBLIC_APP_URL || 'https://deu-bom-financas-sem-erro.vercel.app';
@@ -47,12 +47,25 @@ async function authenticate(req: Request) {
 function route(fn: Handler): Handler {
   return async (req, res) => {
     try { await fn(req, res); }
-    catch (error) { json(res, error instanceof ApiError ? error.status : 503, { error: error instanceof ApiError ? error.message : 'Integração indisponível. Tente novamente mais tarde.' }); }
+    catch (error) { json(res, error instanceof ApiError ? error.status : 503, { error: error instanceof ApiError ? error.message : 'Integração indisponível. Tente novamente mais tarde.', code: error instanceof ApiError ? error.code : undefined, actionUrl: error instanceof ApiError ? error.actionUrl : undefined }); }
   };
 }
 async function google<T>(token: string, path: string, method = 'GET', input?: unknown): Promise<T> {
   const response = await fetch(`https://www.googleapis.com${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: input === undefined ? undefined : JSON.stringify(input), signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new ApiError(response.status, response.status === 401 ? 'Reconecte sua conta Google.' : 'O Google não concluiu a sincronização. Tente novamente.');
+  if (!response.ok) {
+    const details = await response.json().catch(() => ({})) as { error?: { status?: string; errors?: { reason?: string }[]; details?: { reason?: string }[] } };
+    const reasons = [details.error?.status, ...(details.error?.errors || []).map((item) => item.reason), ...(details.error?.details || []).map((item) => item.reason)];
+    const tasks = path.startsWith('/tasks/');
+    if (reasons.some((reason) => reason === 'SERVICE_DISABLED' || reason === 'accessNotConfigured')) {
+      const service = tasks ? 'tasks.googleapis.com' : 'calendar-json.googleapis.com';
+      const project = /^\d+/.exec(process.env.GOOGLE_CLIENT_ID || '')?.[0];
+      throw new ApiError(403, `A conta está conectada, mas a API Google ${tasks ? 'Tasks' : 'Calendar'} está desativada no projeto do aplicativo. Ative a API e tente sincronizar novamente.`, tasks ? 'google_tasks_disabled' : 'google_calendar_disabled', `https://console.cloud.google.com/apis/library/${service}${project ? `?project=${project}` : ''}`);
+    }
+    if (response.status === 401) throw new ApiError(401, 'A autorização Google expirou. Reconecte sua conta.', 'google_reconnect');
+    if (response.status === 403) throw new ApiError(403, 'O Google recusou a permissão solicitada. Reconecte e autorize Agenda e Tarefas.', 'google_permission_denied');
+    if (response.status === 429) throw new ApiError(429, 'O limite temporário do Google foi atingido. Aguarde alguns minutos.', 'google_quota');
+    throw new ApiError(response.status, 'O Google não concluiu a sincronização. Tente novamente.', 'google_request_failed');
+  }
   return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 async function exchange(params: URLSearchParams) {
@@ -131,6 +144,12 @@ export const sync = route(async (req, res) => {
   if (!data) throw new ApiError(429, 'Sincronização em andamento ou conexão indisponível.');
   const connection = data as Connection;
   let processed = 0, completed = 0, updated = 0, errors = 0;
+  const issues: { message: string; code?: string; actionUrl?: string }[] = [];
+  const recordIssue = (error: unknown) => {
+    errors += 1;
+    const issue = error instanceof ApiError ? { message: error.message, code: error.code, actionUrl: error.actionUrl } : { message: 'Um item não pôde ser sincronizado. Tente novamente.' };
+    if (issues.length < 5 && !issues.some((item) => item.message === issue.message)) issues.push(issue);
+  };
   try {
     const token = await accessToken(connection);
     if (!connection.task_list_id) {
@@ -175,7 +194,7 @@ export const sync = route(async (req, res) => {
         }
         const removed = await admin.from('google_calendar_links').delete().eq('user_id', user.id).eq('google_account_sub', connection.google_account_sub).eq('transaction_id', link.transaction_id); check(removed.error);
         links.delete(link.transaction_id);
-      } catch { errors += 1; }
+      } catch (error) { recordIssue(error); }
     }
     const ordered = transactions.sort((a, b) => {
       const first = links.get(a.id), second = links.get(b.id);
@@ -229,11 +248,11 @@ export const sync = route(async (req, res) => {
         const result = await admin.from('google_calendar_links').upsert({ user_id: user.id, google_account_sub: connection.google_account_sub, transaction_id: row.id, task_id: task.id, event_id: id, app_fingerprint: fingerprint(row), app_status: row.status, google_status: task.status, google_updated_at: task.updated, last_synced_at: new Date().toISOString() }); check(result.error);
         links.set(row.id, { user_id: user.id, google_account_sub: connection.google_account_sub, transaction_id: row.id, task_id: task.id, event_id: id, app_fingerprint: fingerprint(row), app_status: row.status, google_status: task.status, google_updated_at: task.updated, last_synced_at: new Date().toISOString() });
         processed += 1;
-      } catch { errors += 1; }
+      } catch (error) { recordIssue(error); }
     }
     const syncAt = new Date().toISOString();
     const result = await admin.from('google_calendar_connections').update({ sync_at: syncAt }).eq('user_id', user.id); check(result.error);
     const remaining = transactions.filter((row) => !links.has(row.id) || links.get(row.id)!.app_fingerprint !== fingerprint(row)).length;
-    json(res, 200, { processed, completed, updated, remaining, errors, syncAt });
+    json(res, 200, { processed, completed, updated, remaining, errors, issues, syncAt });
   } finally { await admin.from('google_calendar_connections').update({ sync_locked_until: null }).eq('user_id', user.id); }
 });

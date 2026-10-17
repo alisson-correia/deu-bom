@@ -17,7 +17,7 @@ export const AppShell = ({ children, className, mainClassName }: AppShellProps) 
     >
       <main
         className={cn(
-          'mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-[calc(1.5rem+env(safe-area-inset-top,0px))] sm:px-6 lg:px-8',
+          'app-content flex min-w-0 flex-col gap-5 py-5 sm:gap-6 sm:py-6',
           mainClassName
         )}
       >

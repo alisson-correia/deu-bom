@@ -36,3 +36,15 @@ test('fala completa reconhece valor por extenso, data e repetição sem misturar
   assert.ok(numeric?.kind === 'transaction'); assert.equal(numeric.date, '2026-11-05'); assert.equal(numeric.amount, 1250);
   assert.equal(parseVoiceCommand('despesa aluguel 1250 reais dia 31 de fevereiro de 2026', { preferredKind: 'transaction' }), null);
 });
+
+
+test('quantidade, embalagem e preço unitário geram total sem confundir peso com unidades', () => {
+ const packs = parseVoiceCommand('despesa 10 açúcares, 1 quilo cada, R$50 cada um à vista pago dia 10/11/2026', {preferredKind:'transaction'});
+ assert.ok(packs?.kind === 'transaction'); assert.equal(packs.amount,500); assert.equal(packs.itemDetails?.quantity,10); assert.equal(packs.itemDetails?.unit,'un'); assert.equal(packs.itemDetails?.packageSize,'1 kg'); assert.equal(packs.categoryHint,'Alimentação'); assert.equal(packs.status,'completed'); assert.equal(packs.date,'2026-11-10');
+ const kilos = parseVoiceCommand('10 quilos de açúcar 50 reais cada', {preferredKind:'shopping'});
+ assert.ok(kilos?.kind === 'shopping'); assert.equal(kilos.quantity,10); assert.equal(kilos.unit,'kg'); assert.equal(kilos.estimatedPrice,50);
+ const missing = parseVoiceCommand('10 quilos de açúcar', {preferredKind:'shopping'});
+ assert.ok(missing?.kind === 'shopping'); assert.equal(missing.estimatedPrice,0);
+ const total = parseVoiceCommand('10 unidades de açúcar valor total de 50 reais', {preferredKind:'shopping'});
+ assert.ok(total?.kind === 'shopping'); assert.equal(total.estimatedPrice,5);
+});

@@ -37,6 +37,11 @@ export const BottomNav: React.FC = () => {
   const [isPinned, setIsPinned] = React.useState(false);
   const isExpanded = !isMobile && isPinned;
 
+  React.useLayoutEffect(() => {
+    document.documentElement.style.setProperty('--app-sidebar-width', isExpanded ? '272px' : '88px');
+    return () => { document.documentElement.style.removeProperty('--app-sidebar-width'); };
+  }, [isExpanded]);
+
 
   return (
     <>
@@ -45,7 +50,7 @@ export const BottomNav: React.FC = () => {
           className="fixed inset-x-0 bottom-0 z-[70] border-t border-border/70 bg-card/95 px-2 pb-[calc(0.35rem+env(safe-area-inset-bottom,0px))] pt-2 backdrop-blur-xl xl:hidden"
           aria-label="Navegação principal"
         >
-          <div className="grid grid-cols-5 gap-1">
+          <div className="mx-auto grid max-w-3xl grid-cols-5 gap-1">
             {mobileNavItems.map((item) => {
               const isActive = location.pathname === item.to || (item.to === '/more' && ['/budgets', '/analytics', '/settings'].includes(location.pathname));
 
@@ -55,13 +60,13 @@ export const BottomNav: React.FC = () => {
                   to={item.to}
                   aria-label={item.label}
                   className={cn(
-                    'flex min-h-[60px] flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-[11px] font-medium transition-colors',
+                    'flex min-h-[56px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     isActive
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                   )}
                 >
-                  <item.icon className="h-[18px] w-[18px] shrink-0" />
+                  <item.icon aria-hidden="true" className="h-[18px] w-[18px] shrink-0" />
                   <span className="truncate leading-none">{item.label}</span>
                 </NavLink>
               );
@@ -116,7 +121,7 @@ export const BottomNav: React.FC = () => {
                 to={item.to}
                 aria-label={item.label}
                 className={cn(
-                  'relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-3 text-sm transition-colors',
+                  'relative flex min-h-11 items-center gap-3 overflow-hidden rounded-xl px-3 py-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                   isActive ? 'text-primary' : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                   !isExpanded && 'justify-center px-0'
                 )}
@@ -130,7 +135,7 @@ export const BottomNav: React.FC = () => {
                   />
                 ) : null}
 
-                <item.icon className="relative z-10 h-5 w-5 shrink-0" />
+                <item.icon aria-hidden="true" className="relative z-10 h-5 w-5 shrink-0" />
                 <span
                   className={cn(
                     'relative z-10 truncate font-medium',
@@ -144,11 +149,6 @@ export const BottomNav: React.FC = () => {
           })}
         </nav>
 
-        <div className="border-t border-border/60 px-4 py-4">
-          <div className="flex h-10 items-center justify-center rounded-2xl bg-muted/40 text-primary">
-            <BarChart3 className="h-4 w-4 shrink-0" />
-          </div>
-        </div>
       </aside>
     </>
   );
