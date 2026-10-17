@@ -9,6 +9,8 @@ Objetivo: permitir entender o mês e registrar um movimento rapidamente, com men
 - Microfone acessível no cabeçalho, sem um card permanente de instruções antes do saldo. Abrir a ajuda cancela a escuta em andamento.
 - Movimentos recentes antes de análises secundárias; detalhes financeiros permanecem disponíveis.
 - Cor de destaque independente do modo claro/escuro/sistema. Não transformar receita, despesa e erro em preferências decorativas.
+- Nos formulários, a cor selecionada governa Salvar, foco e seleções ativas, incluindo Despesa/Receita, situação e categoria. Os nomes explicam o significado financeiro; uma seleção ativa não deve conservar um acento fixo de receita/despesa.
+- As cores cadastradas para categorias permanecem nos respectivos ícones e amostras; a moldura de seleção segue a cor do sistema. Alertas reais e exclusão mantêm os tokens semânticos de aviso/erro/destruição.
 - Todos os recursos acessíveis por Mais no celular/tablet até 1279px, sem exigir a barra lateral. A barra lateral fica restrita a desktop a partir de 1280px.
 - Interrogação no topo abre guia contextual: passos curtos, Voltar/Próximo/Concluir, fechamento e reinício. O guia não altera dados nem aciona operações descritas.
 

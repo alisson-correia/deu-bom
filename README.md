@@ -20,11 +20,11 @@ O projeto esperado está em `supabase/config.toml`: `ufmzkxhrljpogulllnzv`. Use 
 
 ## Ajustes de interface
 
-- Controle **Tema** sempre acessível: Claro, Escuro e Sistema, com escolha persistida e acompanhamento da preferência do dispositivo.
-- Paleta violeta/azul e rosa suave nos dois modos; categorias já personalizadas pelos usuários são preservadas.
+- Controle por ícone de sol/lua sempre acessível: Claro, Escuro e Sistema, com escolha persistida e acompanhamento da preferência do dispositivo.
+- Quatro paletas (roxo, azul, verde e rosa) nos dois modos, inclusive nos modais; categorias já personalizadas pelos usuários são preservadas.
 - Receita e despesa com a mesma aparência inicial; destaque somente ao selecionar. Removidos o atalho flutuante de nova despesa, um link repetido de detalhes e o botão Salvar duplicado do formulário.
 - Microfone no cabeçalho de todas as telas autenticadas, com reconhecimento único e contexto da aba atual. Diga “despesa mercado 35,90 reais”, “salário 2000 reais”, “tema claro”, “tema escuro” ou “modo do sistema”. Lançamentos abrem o formulário para revisão; nenhuma transcrição é salva automaticamente.
-- O parser preserva compras/recorrência e distingue valores decimais de parcelas. Resultados parciais não executam comandos, erros de microfone têm orientação e a escuta termina ao sair da tela. A voz depende do suporte e das permissões do navegador, que pode processar o áudio online.
+- A escuta aguarda seis segundos de pausa ou o botão Concluir fala. O parser reconhece valores por extenso, datas e repetição, preserva compras/recorrência e distingue valores decimais de parcelas. Resultados parciais não executam comandos, erros de microfone têm orientação e a escuta termina ao sair da tela. A voz depende do suporte e das permissões do navegador, que pode processar o áudio online.
 - Aviso único de nova versão pelo service worker e por `version.json`, com verificação ao abrir, voltar ao app e a cada minuto. Permite adiar e pede confirmação antes de atualizar, sem recarregar automaticamente por troca do worker em outra aba.
 - O worker guarda apenas assets do app; não mantém respostas autenticadas do Supabase no cache compartilhado.
 - Formulário acima da navegação mobile, alvos de toque, foco contido, fechamento por Escape e título/valor dos cartões reorganizados em telas estreitas.
@@ -57,7 +57,7 @@ O ambiente inicialmente injetava uma URL/chave diferentes e recebia HTTP 401. A 
 
 `vercel.json` fixa a instalação por npm (sem escolher os lockfiles Bun), configura Vite, saída `dist`, fallback SPA e ausência de cache em `/sw.js` e `/version.json`. O endpoint público `https://deu-bom-financas-sem-erro.vercel.app` respondeu HTTP 200 com identificação do Vercel.
 
-O acesso administrativo foi restabelecido com o segredo `VERCEL_TOKEN` e a equipe `team_UChZPctatN15WPf0C0G59snc`. O projeto `prj_s5VpsAYH1MfNwHQwyO1GOJ8N4sX5` está ligado a **alisson-correia/deu-bom** (produção automática pela branch `main`). A primeira publicação dos ajustes foi confirmada pelo deploy `dpl_6AA6h5bF64KidCMtHe7v8LZexSxk`, com variáveis públicas do Supabase de produção corrigidas e validação de abertura e temas no domínio público.
+O acesso administrativo foi restabelecido com o segredo `VERCEL_TOKEN` e a equipe `team_UChZPctatN15WPf0C0G59snc`. O projeto `prj_s5VpsAYH1MfNwHQwyO1GOJ8N4sX5` está ligado a **alisson-correia/deu-bom** (branch de produção `main`; confirme cada publicação pelo status do deploy). A primeira publicação dos ajustes foi confirmada pelo deploy `dpl_6AA6h5bF64KidCMtHe7v8LZexSxk`, com variáveis públicas do Supabase de produção corrigidas e validação de abertura e temas no domínio público.
 
 Publicações manuais de commits de uma branch não fazem merge na `main`. Antes de futuras publicações automáticas, confira se a `main` contém as melhorias desejadas. Configure credenciais somente nas configurações seguras do ambiente, nunca no Git ou no chat.
 
@@ -77,3 +77,11 @@ Capturas de navegador emulado de 320 px, com dados de teste:
 | Claro | Escuro |
 | --- | --- |
 | ![Início claro](docs/qa/screenshots/mobile-light.png) | ![Início escuro](docs/qa/screenshots/mobile-dark.png) |
+
+## Agenda e lembretes
+
+A integração combina uma tarefa com conclusão sincronizada e um evento vinculado: despesas em vermelho, receitas em verde, horários livres e lembretes um dia antes e no vencimento. A sincronização ocorre ao abrir/retomar o app e a cada minuto enquanto ele está visível. Não há sincronização contínua com o app fechado.
+
+A ativação exige OAuth do Google e a migração das duas tabelas privadas. As credenciais ficam exclusivamente no servidor; tokens são criptografados. Consulte a [configuração e validação real da integração](docs/qa/google-agenda-setup.md). Testes simulados não comprovam consentimento nem acesso real à conta Google.
+
+O app também apresenta avisos de vencimento ao ser aberto, com deduplicação por conta/equipe/dia. Notificações do navegador exigem permissão. A troca de conta ou equipe limpa o contexto financeiro e ignora respostas antigas.

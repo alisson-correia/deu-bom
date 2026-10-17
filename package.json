@@ -11,9 +11,11 @@
     "preview": "vite preview",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc -p tsconfig.server.json",
     "check:supabase": "node --use-env-proxy scripts/check-connections.mjs",
-    "check:vercel": "node --use-env-proxy scripts/check-connections.mjs --vercel"
+    "check:vercel": "node --use-env-proxy scripts/check-connections.mjs --vercel",
+    "db:migrate:google": "node scripts/apply-google-migration.mjs",
+    "prebuild": "node scripts/prepare-google-schema.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -55,6 +57,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
+    "pg": "^8.16.3",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

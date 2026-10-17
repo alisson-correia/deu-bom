@@ -220,7 +220,7 @@ const Transactions: React.FC = () => {
       title: command.title,
       amount: command.amount,
       type: command.type,
-      date: getDateFromDayOfMonth(command.dayOfMonth),
+      date: command.date || getDateFromDayOfMonth(command.dayOfMonth),
       recurrenceType: command.recurrenceType,
       installmentCount: command.installmentCount || 2,
       dayOfMonth: command.dayOfMonth,

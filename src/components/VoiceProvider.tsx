@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import { toast } from 'sonner';
 import { useVoiceCommand } from '@/hooks/useVoiceCommand';
 import { parseVoiceCommand, type ParsedVoiceCommand } from '@/services/voiceCommandParser';
@@ -14,6 +16,8 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
   const target = useRef<TranscriptHandler | null>(null);
   const [draft, setDraft] = useState<Extract<ParsedVoiceCommand, { kind: 'transaction' }> | null>(null);
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const controls = useVoiceCommand({ onTranscript: (text) => {
     if (target.current) { target.current(text); return; }
     const command = parseVoiceCommand(text, { preferredKind: 'transaction' });
@@ -27,7 +31,7 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
     return () => { if (target.current === handler) target.current = null; };
   }, []);
   const { cancelListening } = controls;
-  useEffect(() => { cancelListening(); setDraft(null); }, [pathname, cancelListening]);
+  useEffect(() => { cancelListening(); setDraft(null); }, [pathname, cancelListening, user?.id, currentWorkspace?.id]);
   return <VoiceContext.Provider value={{ ...controls, register }}>
     {children}
     <TransactionForm isOpen={!!draft} onClose={() => setDraft(null)} defaultType={draft?.type || 'expense'} initialDraft={draft} />

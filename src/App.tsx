@@ -2,8 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { FinanceScopeProvider, FinanceScopedRoutes } from "@/components/FinanceScopeProvider";
+import { GoogleIntegrationProvider } from "@/hooks/useGoogleIntegration";
 import { WorkspaceProvider } from "@/hooks/useWorkspace";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -35,6 +37,8 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <WorkspaceProvider>
+            <FinanceScopeProvider>
+            <GoogleIntegrationProvider>
             <Toaster />
             <Sonner position="top-center" />
             <PWAInstallHint />
@@ -43,7 +47,7 @@ const App = () => (
             <BrowserRouter>
               <VoiceProvider>
               <AppToolbar />
-              <Routes>
+              <FinanceScopedRoutes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/confirm" element={<AuthConfirm />} />
               <Route path="/accept-invite" element={<AcceptInvite />} />
@@ -108,9 +112,11 @@ const App = () => (
               />
               <Route path="/more" element={<ProtectedRoute><More /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
-            </Routes>
+            </FinanceScopedRoutes>
               </VoiceProvider>
           </BrowserRouter>
+            </GoogleIntegrationProvider>
+            </FinanceScopeProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </TooltipProvider>

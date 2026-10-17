@@ -26,3 +26,13 @@ test('comandos de tema não são confundidos com descrições de despesas', () =
   assert.equal(parseVoiceTheme('modo do sistema'), 'system');
   assert.equal(parseVoiceTheme('despesa com tema claro 20 reais'), null);
 });
+
+test('fala completa reconhece valor por extenso, data e repetição sem misturar os números', () => {
+  const result = parseVoiceCommand('receita três mil reais salário dia cinco de novembro de 2026 repetir doze vezes', { preferredKind: 'transaction' });
+  assert.ok(result?.kind === 'transaction');
+  assert.equal(result.amount, 3000); assert.equal(result.title, 'salario');
+  assert.equal(result.date, '2026-11-05'); assert.equal(result.recurrenceType, 'installment'); assert.equal(result.installmentCount, 12);
+  const numeric = parseVoiceCommand('despesa aluguel 1250 reais dia 05/11/2026', { preferredKind: 'transaction' });
+  assert.ok(numeric?.kind === 'transaction'); assert.equal(numeric.date, '2026-11-05'); assert.equal(numeric.amount, 1250);
+  assert.equal(parseVoiceCommand('despesa aluguel 1250 reais dia 31 de fevereiro de 2026', { preferredKind: 'transaction' }), null);
+});

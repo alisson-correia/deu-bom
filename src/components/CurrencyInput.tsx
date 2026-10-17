@@ -54,7 +54,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
           bg-input border border-border
           text-foreground font-mono text-lg
           placeholder:text-muted-foreground
-          focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
+          focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
           disabled:opacity-50 disabled:cursor-not-allowed
           transition-all duration-200
           ${className}

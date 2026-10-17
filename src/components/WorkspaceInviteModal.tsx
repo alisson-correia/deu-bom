@@ -236,9 +236,9 @@ export const WorkspaceInviteModal: React.FC<WorkspaceInviteModalProps> = ({
                               {/* Remove button */}
                               <button
                                 onClick={() => handleRemoveMember(member.id, member.displayName || member.email || 'este membro')}
-                                className="w-8 h-8 rounded-full bg-expense/10 flex items-center justify-center flex-shrink-0"
+                                className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0"
                               >
-                                <Trash2 className="w-4 h-4 text-expense" />
+                                <Trash2 className="w-4 h-4 text-destructive" />
                               </button>
                             </div>
                           )}
@@ -266,9 +266,9 @@ export const WorkspaceInviteModal: React.FC<WorkspaceInviteModalProps> = ({
                       {canManageMembers && (
                         <button
                           onClick={() => handleRemoveInvitation(invitation.id)}
-                          className="w-8 h-8 rounded-full bg-expense/10 flex items-center justify-center"
+                          className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center"
                         >
-                          <Trash2 className="w-4 h-4 text-expense" />
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </button>
                       )}
                     </div>

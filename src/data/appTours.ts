@@ -64,6 +64,7 @@ export const appTours: Record<string, AppTourDefinition> = {
     steps: [
       { title: 'Confira o contexto da equipe', description: 'Abra a seção Equipe para ver o workspace ativo e as opções de acesso. Trocar de workspace muda o conjunto de dados financeiros exibido.', cue: 'Workspace → Dados da equipe' },
       { title: 'Personalize a aparência', description: 'Abra Aparência para escolher claro, escuro ou o padrão do sistema e sua cor de destaque. A aparência fica salva neste navegador.', cue: 'Modo + Cor de destaque' },
+      { title: 'Conecte sua agenda', description: 'Abra Agenda para autorizar sua conta Google e sincronizar tarefas e lembretes. Se a integração ainda não estiver configurada, o painel informa isso sem impedir o uso do app.', cue: 'Agenda → Conectar Google' },
       { title: 'Cuide dos seus dados', description: 'Use Perfil para sua conta e Dados para importar, exportar ou limpar informações. Leia as confirmações com atenção antes de excluir informações ou realizar ações permanentes.', cue: 'Conferir antes de confirmar' },
     ],
   },

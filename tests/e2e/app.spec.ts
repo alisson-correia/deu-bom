@@ -6,7 +6,7 @@ const categories = [
   { id: '33333333-3333-4333-8333-333333333333', user_id: USER, workspace_id: null, name: 'Salário', icon: 'Wallet', color: '#4b70b9', type: 'income' },
 ];
 async function backend(page: Page) {
-  const state = { rows: [] as Record<string, unknown>[], writes: [] as Record<string, unknown>[], failRead: false, failWrite: false };
+  const state = { rows: [] as Record<string, unknown>[], writes: [] as Record<string, unknown>[], failRead: false, failWrite: false, notificationsEnabled: false };
   const session = { access_token: 'test-token', refresh_token: 'test-refresh', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: { id: USER, email: 'teste@example.com', aud: 'authenticated', role: 'authenticated' } };
   await page.addInitScript(() => localStorage.setItem('deu-bom:pwa-install-dismissed', 'true'));
   await page.route('https://supabase.test/**', async (route) => {
@@ -15,7 +15,7 @@ async function backend(page: Page) {
     if (url.pathname.endsWith('/token')) return reply(session);
     if (url.pathname.endsWith('/user')) return reply(session.user);
     if (url.pathname.endsWith('/logout')) return reply({});
-    if (url.pathname.endsWith('/profiles')) return reply({ id: USER, current_workspace_id: null, display_name: 'Teste', email: 'teste@example.com', cycle_start_day: 1, currency: 'BRL', locale: 'pt-BR', notifications_enabled: false });
+    if (url.pathname.endsWith('/profiles')) return reply({ id: USER, current_workspace_id: null, display_name: 'Teste', email: 'teste@example.com', cycle_start_day: 1, currency: 'BRL', locale: 'pt-BR', notifications_enabled: state.notificationsEnabled });
     if (url.pathname.endsWith('/categories')) return reply(categories);
     if (url.pathname.endsWith('/transactions')) {
       if (req.method() === 'GET') return state.failRead ? reply({ message: 'denied' }, 403) : reply(state.rows);
@@ -115,12 +115,14 @@ test('voz da tela inicial revisa o lançamento e altera o tema sem gravar automa
   await voice(page); const state = await backend(page); await login(page);
   await page.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('despesa mercado 35,90 reais'));
+  await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByLabel('Valor', { exact: true })).toHaveValue('35,90');
   expect(state.writes).toHaveLength(0);
   await page.getByRole('button', { name: 'Fechar formulário' }).click();
   await page.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('tema escuro'));
+  await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
@@ -325,12 +327,14 @@ test('microfone do cabeçalho respeita a aba e cancela ao abrir ajuda ou navegar
   await page.goto('/shopping-list');
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('cinco unidades de detergente por 5 reais'));
+  await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
   await expect(page.getByLabel('Item', { exact: true })).toHaveValue(/detergente/i);
   await expect(page.getByRole('button', { name: 'Confirmar e adicionar', exact: true })).toBeVisible();
   expect(state.writes).toHaveLength(0);
   await page.goto('/analytics');
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
   await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('despesa mercado 45 reais'));
+  await page.getByRole('button', { name: 'Concluir fala', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('Valor', { exact: true })).toHaveValue('45,00');
   await page.getByRole('button', { name: 'Fechar formulário' }).click();
   await toolbar.getByRole('button', { name: 'Falar com o app' }).click();
@@ -360,4 +364,106 @@ test('configurações mostram uma seção por vez e perfil é acessível sem cob
     if (name === 'Aparência') await expect(page.getByRole('button', { name: 'Rosa', exact: true })).toBeVisible();
     if (name === 'Dados') await expect(page.getByRole('button', { name: /Exportar JSON/ })).toBeVisible();
   }
+});
+
+test('voz junta frases separadas e aguarda seis segundos de pausa antes de preparar o cadastro', async ({ page }) => {
+  await voice(page); const state = await backend(page); await login(page);
+  await page.getByRole('button', { name: 'Falar com o app' }).click();
+  await page.clock.install();
+  await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('receita três mil reais'));
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.clock.fastForward(4000);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { sendVoice: (text: string) => void }).sendVoice('salário dia cinco de novembro de 2026 repetir doze vezes'));
+  await page.clock.fastForward(5000);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.clock.fastForward(1200);
+  const dialog = page.getByRole('dialog', { name: 'Nova transacao' });
+  await expect(dialog.getByLabel('Descrição')).toHaveValue('salario');
+  await expect(dialog.getByLabel('Valor', { exact: true })).toHaveValue('36.000,00');
+  await expect(dialog.locator('input[type="date"]').first()).toHaveValue('2026-11-05');
+  expect(state.writes).toHaveLength(0);
+});
+
+test('cor escolhida também acompanha seleção e salvar nos modais de cadastro', async ({ page }) => {
+  await backend(page); await login(page);
+  for (const mode of ['Claro', 'Escuro']) {
+    await theme(page, mode);
+    for (const color of ['Azul', 'Verde', 'Roxo', 'Rosa']) {
+      await page.getByRole('button', { name: 'Alterar tema' }).click();
+      await page.getByRole('menuitemradio', { name: color, exact: true }).click();
+      await page.getByRole('button', { name: 'Nova despesa', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'Nova transacao' });
+      await dialog.getByLabel('Descrição').fill('Teste paleta');
+      await dialog.getByLabel('Valor', { exact: true }).fill('1000');
+      const selected = dialog.getByRole('button', { name: 'Despesa', exact: true });
+      const save = dialog.getByRole('button', { name: 'Salvar', exact: true });
+      const style = (el: HTMLElement) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).color];
+      expect(await selected.evaluate(style)).toEqual(await save.evaluate(style));
+      const expense = await save.evaluate(style);
+      await dialog.getByRole('button', { name: 'Receita', exact: true }).click();
+      await expect(dialog.getByRole('button', { name: 'Receita', exact: true })).toHaveAttribute('aria-pressed', 'true');
+      await expect.poll(() => dialog.getByRole('button', { name: 'Receita', exact: true }).evaluate(style)).toEqual(expense);
+      expect(await save.evaluate(style)).toEqual(expense);
+      await page.getByRole('button', { name: 'Fechar formulário' }).click();
+    }
+  }
+});
+
+test('Agenda informa configuração ausente sem simular conexão Google', async ({ page }) => {
+  await backend(page);
+  let syncCalls = 0;
+  await page.route('**/api/google/**', async (route) => {
+    expect(route.request().headers().authorization).toBe('Bearer test-token');
+    if (route.request().url().endsWith('/sync')) syncCalls += 1;
+    return route.fulfill({ json: { configured: false, connected: false } });
+  });
+  await login(page); await page.goto('/settings');
+  await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Agenda', exact: true }).click();
+  await expect(page.getByText('Integração aguardando configuração', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Conectar Google', exact: true })).toBeDisabled();
+  expect(syncCalls).toBe(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('Agenda sincroniza conclusão do Google, atualiza o saldo e permite desconectar', async ({ page }) => {
+  const state = await backend(page); const now = new Date(); let complete = false; let calls = 0;
+  state.rows.push({ id: 'google-row', user_id: USER, workspace_id: null, title: 'Conta Google', amount: 300, type: 'expense', date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-15`, status: 'pending', category_id: categories[0].id, created_at: now.toISOString(), updated_at: now.toISOString(), is_recurring: false });
+  await page.route('**/api/google/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/status')) return route.fulfill({ json: { configured: true, connected: true, accountEmail: 'google@example.test' } });
+    if (path.endsWith('/disconnect')) return route.fulfill({ json: { connected: false } });
+    if (path.endsWith('/sync')) {
+      calls += 1; const changed = complete; complete = false;
+      if (changed) { state.rows[0].status = 'completed'; state.rows[0].updated_at = new Date().toISOString(); }
+      return route.fulfill({ json: { processed: 1, remaining: 0, completed: changed ? 1 : 0, updated: changed ? 1 : 0, errors: 0, syncAt: new Date().toISOString() } });
+    }
+    return route.fulfill({ status: 500, json: { error: 'Unexpected route' } });
+  });
+  await login(page);
+  await expect.poll(() => calls).toBeGreaterThan(0);
+  await page.goto('/settings');
+  await page.getByRole('navigation', { name: 'Seções das configurações' }).getByRole('button', { name: 'Agenda', exact: true }).click();
+  await expect(page.getByText('Google conectado', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sincronizar agora', exact: true })).toBeEnabled();
+  complete = true;
+  await page.getByRole('button', { name: 'Sincronizar agora', exact: true }).click();
+  await expect.poll(() => state.rows[0].status).toBe('completed');
+  await expect(page.getByRole('button', { name: 'Sincronizar agora', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: 'Desconectar', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Conectar Google', exact: true })).toBeEnabled();
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Resumo do mês' })).toContainText('-R$');
+  expect(state.writes).toHaveLength(0);
+});
+
+test('lembretes mostram despesas de hoje e próximos vencimentos uma vez por dia', async ({ page }) => {
+  const state = await backend(page); state.notificationsEnabled = true;
+  const now = new Date(); const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  state.rows.push({ id: 'due-today', user_id: USER, workspace_id: null, title: 'Vence hoje', amount: 100, type: 'expense', date: day, status: 'pending', category_id: categories[0].id, created_at: now.toISOString(), updated_at: now.toISOString(), is_recurring: false });
+  await login(page);
+  await expect(page.getByText('1 despesa(s) vencem hoje', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Visão geral' })).toBeVisible();
+  await expect(page.getByText('1 despesa(s) vencem hoje', { exact: true })).toHaveCount(0);
 });

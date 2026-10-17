@@ -23,6 +23,16 @@ export function AppToolbar() {
         {user && <Link to="/more" aria-label="Mais opções e configurações" title="Mais opções e configurações" className="flex h-11 w-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring xl:hidden"><Settings aria-hidden="true" className="h-5 w-5" /></Link>}
       </div>
     </div>
-    {isListening && <div role="status" className="absolute inset-x-0 top-full border-b border-primary/20 bg-card px-4 py-2 text-sm text-primary shadow-sm">{lastTranscript || 'Ouvindo… Toque no microfone para parar.'}</div>}
+    {isListening && <section aria-label="Gravação por voz" className="absolute inset-x-0 top-full max-h-[calc(100dvh-5rem)] overflow-y-auto border-b border-primary/20 bg-card px-4 py-3 shadow-lg">
+      <div className="mx-auto max-w-3xl">
+        <p className="text-sm font-medium text-primary">Ouvindo com calma…</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">Diga o valor, o nome, a data e a repetição. A fala termina após 6 segundos de pausa ou ao tocar em Concluir fala.</p>
+        <p role="status" aria-live="polite" className="mt-2 max-h-24 overflow-y-auto break-words text-sm leading-6">{lastTranscript || 'Sua fala aparecerá aqui.'}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={stopListening} className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Concluir fala</button>
+          <button type="button" onClick={cancelListening} className="min-h-11 rounded-xl border border-border px-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Cancelar gravação</button>
+        </div>
+      </div>
+    </section>}
   </div>;
 }

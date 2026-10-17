@@ -13,6 +13,7 @@ import { addMonths, addWeeks, addYears, format, parseISO } from 'date-fns';
 import { useCategories, useFinanceStore, useTransactions } from '@/stores/financeStore';
 import { CurrencyInput } from './CurrencyInput';
 import { openGoogleCalendar } from '@/utils/googleCalendar';
+import { useGoogleIntegration } from '@/hooks/useGoogleIntegration';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { toast } from 'sonner';
 import type {
@@ -67,6 +68,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
     return () => { dialog.removeEventListener('keydown', handleKey); previous?.focus(); };
   }, [isOpen]);
   const categories = useCategories();
+  const { connected: googleConnected } = useGoogleIntegration();
   const transactions = useTransactions();
   const {
     addTransaction,
@@ -160,7 +162,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
         setAmount(initialDraft.amount * (initialDraft.recurrenceType === 'installment' ? (initialDraft.installmentCount || 2) : 1));
         setRecurrenceType(initialDraft.recurrenceType);
         setInstallments(initialDraft.installmentCount || 2);
-        if (initialDraft.dayOfMonth) {
+        if (initialDraft.date) {
+          setDate(initialDraft.date);
+        } else if (initialDraft.dayOfMonth) {
           const today = new Date();
           const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
           setDate(format(new Date(today.getFullYear(), today.getMonth(), Math.min(lastDay, initialDraft.dayOfMonth)), 'yyyy-MM-dd'));
@@ -507,7 +511,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 aria-pressed={type === 'expense'}
                 className={`py-3 rounded-lg font-medium transition-all ${
                   type === 'expense'
-                    ? 'bg-expense text-expense-foreground shadow-md'
+                    ? 'bg-primary text-primary-foreground shadow-md'
                     : 'text-muted-foreground'
                 }`}
               >
@@ -518,7 +522,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 aria-pressed={type === 'income'}
                 className={`py-3 rounded-lg font-medium transition-all ${
                   type === 'income'
-                    ? 'bg-income text-income-foreground shadow-md'
+                    ? 'bg-primary text-primary-foreground shadow-md'
                     : 'text-muted-foreground'
                 }`}
               >
@@ -533,7 +537,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
               <CurrencyInput
                 value={amount}
                 onChange={setAmount}
-                className={type === 'income' ? 'focus:ring-income' : 'focus:ring-expense'}
+                className="focus:ring-ring"
               />
             </div>
 
@@ -547,7 +551,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 onChange={(event) => setTitle(event.target.value)}
                 aria-label="Descrição"
                 placeholder="Ex: Supermercado"
-                className="w-full rounded-xl border border-border bg-input px-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl border border-border bg-input px-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
               {!editTransaction && suggestedCategory && suggestedCategory.id !== categoryId ? (
                 <button
@@ -566,6 +570,8 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 Categoria
               </label>
               <button
+                aria-expanded={showCategoryPicker}
+                aria-label="Selecionar categoria"
                 onClick={() => setShowCategoryPicker((current) => !current)}
                 className="flex w-full items-center justify-between rounded-xl border border-border bg-input px-4 py-4"
               >
@@ -603,13 +609,14 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                         return (
                           <button
                             key={category.id}
+                            aria-pressed={categoryId === category.id}
                             onClick={() => {
                               setCategoryId(category.id);
                               setShowCategoryPicker(false);
                             }}
                             className={`flex flex-col items-center gap-2 rounded-xl p-3 transition-all ${
                               categoryId === category.id
-                                ? 'bg-card shadow-md'
+                                ? 'bg-primary/10 ring-2 ring-ring shadow-md'
                                 : 'hover:bg-card/50'
                             }`}
                           >
@@ -641,7 +648,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                   type="date"
                   value={date}
                   onChange={(event) => setDate(event.target.value)}
-                  className="w-full rounded-xl border border-border bg-input py-4 pl-12 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full rounded-xl border border-border bg-input py-4 pl-12 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             </div>
@@ -722,7 +729,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                                 setRecurrenceInterval('monthly');
                                 setEndCondition('never');
                               }}
-                              className="rounded-xl border border-income/20 bg-income/10 px-3 py-2 text-left text-xs font-medium text-income"
+                              className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-left text-xs font-medium text-primary"
                             >
                               Salario mensal
                             </button>
@@ -732,7 +739,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                                 setType('expense');
                                 setRecurrenceType('installment');
                               }}
-                              className="rounded-xl border border-expense/20 bg-expense/10 px-3 py-2 text-left text-xs font-medium text-expense"
+                              className="rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-left text-xs font-medium text-primary"
                             >
                               Divida parcelada
                             </button>
@@ -758,7 +765,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                                       clampCount(Number.parseInt(event.target.value, 10), 2, 120)
                                     )
                                   }
-                                  className="h-12 rounded-xl border border-border bg-input px-4 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                  className="h-12 rounded-xl border border-border bg-input px-4 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                                 />
                                 <div className="grid grid-cols-5 gap-2">
                                   {[3, 6, 12, 24, 48].map((option) => (
@@ -869,7 +876,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                                           clampCount(Number.parseInt(event.target.value, 10), 2, 120)
                                         )
                                       }
-                                      className="h-12 rounded-xl border border-border bg-input px-4 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                      className="h-12 rounded-xl border border-border bg-input px-4 text-base font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                                     />
                                     <div className="grid grid-cols-4 gap-2">
                                       {[6, 12, 24, 36].map((option) => (
@@ -897,7 +904,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                                       type="date"
                                       value={endDate}
                                       onChange={(event) => setEndDate(event.target.value)}
-                                      className="w-full rounded-xl border border-border bg-input py-4 pl-12 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                      className="w-full rounded-xl border border-border bg-input py-4 pl-12 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                                     />
                                   </div>
                                 ) : null}
@@ -915,7 +922,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                           onChange={(event) => setNotes(event.target.value)}
                           placeholder="Adicione uma nota..."
                           rows={3}
-                          className="w-full resize-none rounded-xl border border-border bg-input px-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                          className="w-full resize-none rounded-xl border border-border bg-input px-4 py-4 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         />
                       </div>
                     </div>
@@ -931,10 +938,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 </label>
                 <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
                   <button
+                    aria-pressed={status === 'pending'}
                     onClick={() => setStatus('pending')}
                     className={`flex items-center justify-center gap-2 rounded-lg py-3 font-medium transition-all ${
                       status === 'pending'
-                        ? 'border border-pending/30 bg-pending/20 text-pending shadow-md'
+                        ? 'border border-primary bg-primary text-primary-foreground shadow-md'
                         : 'text-muted-foreground'
                     }`}
                   >
@@ -942,10 +950,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                     Pendente
                   </button>
                   <button
+                    aria-pressed={status === 'completed'}
                     onClick={() => setStatus('completed')}
                     className={`flex items-center justify-center gap-2 rounded-lg py-3 font-medium transition-all ${
                       status === 'completed'
-                        ? 'border border-income/30 bg-income/20 text-income shadow-md'
+                        ? 'border border-primary bg-primary text-primary-foreground shadow-md'
                         : 'text-muted-foreground'
                     }`}
                   >
@@ -972,27 +981,23 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
           </div>
 
           <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] shadow-[0_-12px_28px_rgba(15,23,42,0.08)] backdrop-blur sm:p-5">
-            <div className="grid grid-cols-[3.25rem_1fr] gap-2 sm:grid-cols-[auto_1fr]">
-              <button
+            <div className={googleConnected ? 'grid grid-cols-1' : 'grid grid-cols-[3.25rem_1fr] gap-2 sm:grid-cols-[auto_1fr]'}>
+              {!googleConnected && <button
                 type="button"
                 onClick={handleAddToCalendar}
                 disabled={!canOpenCalendar || isSubmitting || isResolvingScope}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
-                aria-label="Adicionar ao Google"
-                title="Adicionar ao Google"
+                aria-label="Criar lembrete manual no Google"
+                title="Lembrete manual; a conclusão não é sincronizada"
               >
                 <CalendarPlus className="h-4 w-4" />
-                <span className="hidden sm:inline">Adicionar ao Google</span>
-              </button>
+                <span className="hidden sm:inline">Lembrete manual</span>
+              </button>}
 
               <button
                 onClick={() => handleSubmit()}
                 disabled={!canSave}
-                className={`h-12 w-full rounded-xl text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
-                  type === 'income'
-                    ? 'bg-income text-income-foreground shadow-glow-income'
-                    : 'bg-expense text-expense-foreground shadow-glow-expense'
-                }`}
+                className="h-12 w-full rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting
                   ? 'Salvando...'

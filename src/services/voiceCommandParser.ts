@@ -10,6 +10,7 @@ export type ParsedVoiceCommand =
       recurrenceType: 'none' | 'installment' | 'subscription';
       installmentCount?: number;
       dayOfMonth?: number;
+      date?: string;
     }
   | {
       kind: 'shopping';
@@ -50,6 +51,9 @@ const numberWords: Record<string, number> = {
   dezoito: 18,
   dezenove: 19,
   vinte: 20,
+  trinta: 30, quarenta: 40, cinquenta: 50, sessenta: 60, setenta: 70, oitenta: 80, noventa: 90,
+  cem: 100, cento: 100, duzentos: 200, trezentos: 300, quatrocentos: 400,
+  quinhentos: 500, seiscentos: 600, setecentos: 700, oitocentos: 800, novecentos: 900,
 };
 
 const unitAliases: Record<string, string> = {
@@ -79,6 +83,37 @@ const normalize = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+const spokenNumberPattern = `(?:${Object.keys(numberWords).map(normalize).join('|')}|mil|milhao|milhoes)`;
+const spokenPhrasePattern = `${spokenNumberPattern}(?:\\s+(?:e\\s+)?${spokenNumberPattern})*`;
+const spokenNumber = (phrase: string) => {
+  let total = 0, group = 0;
+  for (const word of phrase.split(/\s+/)) {
+    if (word === 'e') continue;
+    if (word === 'mil') { group = (group || 1) * 1000; continue; }
+    if (word === 'milhao' || word === 'milhoes') { total += (group || 1) * 1000000; group = 0; continue; }
+    group += numberWords[word] || 0;
+  }
+  return total + group;
+};
+const normalizeSpokenNumbers = (text: string) => normalize(text)
+  .replace(new RegExp(`\\b(${spokenPhrasePattern})\\s+(reais|real|vezes|meses|parcelas)\\b`, 'g'), (_match, phrase: string, unit: string) => `${spokenNumber(phrase)} ${unit}`)
+  .replace(new RegExp(`\\bdia\\s+(${spokenPhrasePattern})\\b`, 'g'), (_match, phrase: string) => `dia ${spokenNumber(phrase)}`);
+
+const months = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const namedDatePattern = `\\bdia\\s+(\\d{1,2})\\s+(?:de\\s+)?(${months.join('|')})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`;
+const numericDatePattern = String.raw`\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{4}))?\b`;
+const parseExplicitDate = (text: string): string | null | undefined => {
+  const named = text.match(new RegExp(namedDatePattern));
+  const numeric = text.match(new RegExp(numericDatePattern));
+  if (!named && !numeric) return undefined;
+  const day = Number((named || numeric)![1]);
+  const month = named ? months.indexOf(named[2]) + 1 : Number(numeric![2]);
+  const year = Number((named || numeric)![3] || new Date().getFullYear());
+  const date = new Date(year, month - 1, day);
+  if (year < 1900 || date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};
 
 const numericPattern = String.raw`\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[,.]\d{1,2})?`;
 
@@ -205,7 +240,10 @@ const parseDayOfMonth = (normalized: string) => {
 };
 
 const parseInstallments = (normalized: string) => {
-  const match = normalized.match(/\b(\d{1,3})\s*x\b/i);
+  const match = normalized.match(/\b(\d{1,3})\s*x\b/i)
+    || normalized.match(/\b(?:repetir|repete|repetindo)(?:\s+mensalmente)?(?:\s+por)?\s+(\d{1,3})\s+(?:vezes|meses)\b/i)
+    || normalized.match(/\b(?:por|durante|em)\s+(\d{1,3})\s+(?:meses|parcelas)\b/i)
+    || normalized.match(/\b(\d{1,3})\s+parcelas\b/i);
   if (!match) return undefined;
 
   const count = Number(match[1]);
@@ -214,6 +252,11 @@ const parseInstallments = (normalized: string) => {
 
 const cleanTitle = (text: string, amount: number) =>
   normalize(text)
+    .replace(new RegExp(namedDatePattern, 'g'), ' ')
+    .replace(new RegExp(numericDatePattern, 'g'), ' ')
+    .replace(/\b(?:repetir|repete|repetindo)(?:\s+mensalmente)?(?:\s+por)?\s+\d{1,3}\s+(?:vezes|meses)\b/gi, ' ')
+    .replace(/\b(?:(?:por|durante|em)\s+)?\d{1,3}\s+(?:meses|parcelas)\b/gi, ' ')
+    .replace(/\b(?:mensalmente|todos os meses)\b/gi, ' ')
     .replace(/^(adicionar|add|inserir|lancar|registrar)\s+/i, '')
     .replace(/\b(despesa|receita|gasto|entrada|ganho)\b/gi, '')
     .replace(/\b\d{1,3}\s*x\s+de\s+\d+(?:[.,]\d+)?\b/gi, ' ')
@@ -228,7 +271,7 @@ export const parseVoiceCommand = (
   transcript: string,
   options: ParseVoiceCommandOptions = {}
 ): ParsedVoiceCommand | null => {
-  const normalized = normalize(transcript);
+  const normalized = normalizeSpokenNumbers(transcript);
 
   const wantsShopping =
     options.preferredKind === 'shopping' ||
@@ -249,7 +292,7 @@ export const parseVoiceCommand = (
     /\b(gastei|paguei|recebi|ganhei)\b/.test(normalized);
 
   if (wantsShopping && !wantsTransaction) {
-    const estimatedPrice = parseAmount(transcript);
+    const estimatedPrice = parseAmount(normalized);
     const parsedQuantity = parseShoppingQuantity(normalized);
     const withoutPrice = stripPriceFragments(normalized);
     const withoutQuantity = removeFirstOccurrence(withoutPrice, parsedQuantity.raw);
@@ -283,14 +326,17 @@ export const parseVoiceCommand = (
       normalized.includes('salário') || /\b(recebi|ganhei)\b/.test(normalized)
         ? 'income'
         : 'expense';
-    const amount = parseAmount(transcript);
-    const title = cleanTitle(transcript, amount);
+    const amount = parseAmount(normalized);
+    const title = cleanTitle(normalized, amount);
     const dayOfMonth = parseDayOfMonth(normalized);
+    const date = parseExplicitDate(normalized);
+    if (date === null) return null;
     const installmentCount = parseInstallments(normalized);
     const isSubscription =
       normalized.includes('todo mes') ||
       normalized.includes('todo mês') ||
       normalized.includes('todo dia') ||
+      normalized.includes('mensalmente') || normalized.includes('todos os meses') ||
       (type === 'income' && normalized.includes('salario'));
     const recurrenceType = installmentCount
       ? 'installment'
@@ -309,6 +355,7 @@ export const parseVoiceCommand = (
       recurrenceType,
       installmentCount,
       dayOfMonth,
+      date,
     };
   }
 

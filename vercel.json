@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/((?!.*\\..*).*)",
+      "source": "/((?!api(?:/|$)|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
@@ -29,5 +29,10 @@
       ]
     }
   ],
-  "installCommand": "npm ci --ignore-scripts && npm rebuild esbuild @swc/core"
+  "installCommand": "npm ci --ignore-scripts && npm rebuild esbuild @swc/core",
+  "functions": {
+    "api/google/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }

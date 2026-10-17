@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
+  CalendarDays,
   Download,
   Edit2,
   Eye,
@@ -29,6 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useFinanceStore, useSettings } from '@/stores/financeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { GoogleIntegrationPanel } from '@/components/GoogleIntegrationPanel';
 import { AccentColorPicker } from '@/components/AccentColorPicker';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { supabase } from '@/integrations/supabase/client';
@@ -127,12 +129,13 @@ const Settings: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
-  const [activeSection, setActiveSection] = useState<'profile' | 'team' | 'appearance' | 'data'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'team' | 'appearance' | 'data' | 'agenda'>(() => new URLSearchParams(window.location.search).has('google') ? 'agenda' : 'profile');
   const accessLabel = userRole === 'owner' ? 'Proprietário' : userRole === 'editor' ? 'Editor' : userRole === 'viewer' ? 'Visualizador' : 'Usuário';
   const sections = [
     { id: 'profile' as const, label: 'Perfil', icon: User },
     { id: 'team' as const, label: 'Equipe', icon: Users },
     { id: 'appearance' as const, label: 'Aparência', icon: Sun },
+    { id: 'agenda' as const, label: 'Agenda', icon: CalendarDays },
     { id: 'data' as const, label: 'Dados', icon: FileSpreadsheet },
   ];
 
@@ -417,7 +420,7 @@ const Settings: React.FC = () => {
         description="Escolha o que deseja ajustar."
       />
 
-      <nav aria-label="Seções das configurações" className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 sm:grid-cols-4">
+      <nav aria-label="Seções das configurações" className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-2 sm:grid-cols-5">
         {sections.map((section) => (
           <button
             key={section.id}
@@ -728,6 +731,15 @@ const Settings: React.FC = () => {
                 ) : null}
               </div>
             </div>
+          </SurfaceCard>
+        )}
+        {activeSection === 'agenda' && (
+          <SurfaceCard className="overflow-hidden p-0">
+            <div className="border-b border-border/70 p-5">
+              <h2 id="settings-section-title" className="text-lg font-semibold">Agenda e tarefas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Conecte o Google para acompanhar seus lançamentos.</p>
+            </div>
+            <GoogleIntegrationPanel />
           </SurfaceCard>
         )}
         {activeSection === 'data' && (
