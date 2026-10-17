@@ -387,6 +387,8 @@ test('voz junta frases separadas e aguarda seis segundos de pausa antes de prepa
 
 test('cor escolhida também acompanha seleção e salvar nos modais de cadastro', async ({ page }) => {
   await backend(page); await login(page);
+  // Compare the final palette, independently of CSS interpolation on slow devices.
+  await page.addStyleTag({ content: '*, *::before, *::after { transition: none !important; animation: none !important; }' });
   for (const mode of ['Claro', 'Escuro']) {
     await theme(page, mode);
     for (const color of ['Azul', 'Verde', 'Roxo', 'Rosa']) {
