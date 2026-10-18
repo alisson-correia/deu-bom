@@ -287,7 +287,7 @@ const parseInstallments = (normalized: string) => {
 const cleanTitle = (text: string, amount: number) =>
   normalize(text)
     .replace(new RegExp(namedDatePattern, 'g'), ' ')
-    .replace(new RegExp(numericDatePattern, 'g'), ' ')
+    .replace(new RegExp(`(?:\\bdia\\s+)?${numericDatePattern}`, 'g'), ' ')
     .replace(/\b(?:repetir|repete|repetindo)(?:\s+mensalmente)?(?:\s+por)?\s+\d{1,3}\s+(?:vezes|meses)\b/gi, ' ')
     .replace(/\b(?:(?:por|durante|em)\s+)?\d{1,3}\s+(?:meses|parcelas)\b/gi, ' ')
     .replace(/\b(?:mensalmente|todos os meses)\b/gi, ' ')

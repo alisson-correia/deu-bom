@@ -49,7 +49,44 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     for (const token of ['--primary-foreground', '--sidebar-primary-foreground']) {
       root.style.setProperty(token, foreground);
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', accentColor === 'black' ? (resolvedTheme === 'dark' ? '#000000' : '#ffffff') : (resolvedTheme === 'dark' ? '#15131b' : '#fafafa'));
+    const [hue, saturationText, lightnessText] = primary.split(' ');
+    const saturation = Number(saturationText.replace('%',''));
+    const lightness = Number(lightnessText.replace('%',''));
+    const dark = resolvedTheme === 'dark';
+    const surfaces: Record<string,string> = {
+      '--background': `${hue} ${Math.min(10,saturation)}% ${dark ? 8 : 98}%`,
+      '--card': `${hue} ${Math.min(12,saturation)}% ${dark ? 12 : 100}%`,
+      '--popover': `${hue} ${Math.min(12,saturation)}% ${dark ? 12 : 100}%`,
+      '--muted': `${hue} ${Math.min(12,saturation)}% ${dark ? 18 : 95}%`,
+      '--secondary': `${hue} ${Math.min(12,saturation)}% ${dark ? 20 : 94}%`,
+      '--input': `${hue} ${Math.min(12,saturation)}% ${dark ? 18 : 94}%`,
+      '--border': `${hue} ${Math.min(16,saturation)}% ${dark ? 26 : 84}%`,
+      '--sidebar-background': `${hue} ${Math.min(10,saturation)}% ${dark ? 8 : 98}%`,
+      '--sidebar-accent': `${hue} ${Math.min(12,saturation)}% ${dark ? 18 : 94}%`,
+      '--sidebar-border': `${hue} ${Math.min(16,saturation)}% ${dark ? 26 : 84}%`,
+    };
+    for (const [token,value] of Object.entries(surfaces)) {
+      if (accentColor === 'black') root.style.removeProperty(token);
+      else root.style.setProperty(token,value);
+    }
+    root.style.setProperty('--gradient-card','linear-gradient(145deg,hsl(var(--card)),hsl(var(--background)))');
+    root.style.setProperty('--gradient-glass','linear-gradient(135deg,hsl(var(--primary) / 0.07),transparent)');
+    const financial = {income: dark ? '145 65% 65%' : '145 70% 28%', expense: dark ? '355 82% 72%' : '355 72% 43%', pending: dark ? '38 85% 66%' : '38 85% 30%'};
+    for (const [role,color] of Object.entries(financial)) {root.style.setProperty(`--${role}`,color);root.style.setProperty(`--${role}-foreground`,dark?'0 0% 7%':'0 0% 100%');}
+    root.style.setProperty('--success',financial.income);root.style.setProperty('--warning',financial.pending);
+    root.style.setProperty('--success-foreground',dark?'0 0% 7%':'0 0% 100%');root.style.setProperty('--warning-foreground',dark?'0 0% 7%':'0 0% 100%');
+    root.style.setProperty('--chart-secondary', `${hue} ${saturation}% ${dark ? Math.max(40, lightness - 14) : Math.max(18, lightness - 12)}%`);
+    root.style.setProperty('--accent', `${hue} ${Math.min(35,saturation)}% ${dark ? 22 : 93}%`);
+    root.style.setProperty('--accent-foreground', `${hue} ${Math.min(12,saturation)}% ${dark ? 96 : 12}%`);
+    root.style.setProperty('--foreground', `${hue} ${Math.min(12,saturation)}% ${dark ? 95 : 12}%`);
+    root.style.setProperty('--muted-foreground', `${hue} ${Math.min(14,saturation)}% ${dark ? 74 : 38}%`);
+    root.style.setProperty('--secondary-foreground', `${hue} ${Math.min(14,saturation)}% ${dark ? 88 : 23}%`);
+    root.style.setProperty('--sidebar-foreground', `${hue} ${Math.min(14,saturation)}% ${dark ? 88 : 23}%`);
+    for (const name of ['income','expense']) {
+      root.style.setProperty(`--gradient-${name}`, `linear-gradient(135deg, hsl(var(--${name})), hsl(var(--${name}) / 0.75))`);
+      root.style.setProperty(`--shadow-glow-${name}`, `0 0 20px hsl(var(--${name}) / 0.2)`);
+    }
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', `hsl(${getComputedStyle(root).getPropertyValue('--background').trim()})`);
   }, [resolvedTheme, accentColor]);
 
   useEffect(() => {

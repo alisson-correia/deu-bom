@@ -606,11 +606,11 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-10 w-10 items-center justify-center rounded-full"
-                    style={{ backgroundColor: `${selectedCategory?.color || '#64748b'}20` }}
+                    style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
                   >
                     <CategoryIcon
                       className="h-5 w-5"
-                      style={{ color: selectedCategory?.color }}
+                      style={{ color: 'hsl(var(--primary))' }}
                     />
                   </div>
                   <span>{selectedCategory?.name || 'Selecionar'}</span>
@@ -650,9 +650,9 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({
                           >
                             <div
                               className="flex h-10 w-10 items-center justify-center rounded-full"
-                              style={{ backgroundColor: `${category.color}20` }}
+                              style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
                             >
-                              <Icon className="h-5 w-5" style={{ color: category.color }} />
+                              <Icon className="h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
                             </div>
                             <span className="w-full truncate text-center text-xs">
                               {category.name}
