@@ -1,3 +1,6 @@
+import { ptBR } from 'date-fns/locale';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -64,6 +67,7 @@ const Transactions: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [defaultType, setDefaultType] = useState<TransactionType>('expense');
   const [showCyclePicker, setShowCyclePicker] = useState(false);
+  const [isSavingCycle, setIsSavingCycle] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState<VoiceTransactionDraft | null>(null);
   const [voicePrompt, setVoicePrompt] = useState('');
   const [isSavingVoiceDraft, setIsSavingVoiceDraft] = useState(false);
@@ -93,7 +97,6 @@ const Transactions: React.FC = () => {
     }
   }, [initialize, initialized]);
 
-  const cycleDays = Array.from({ length: 30 }, (_, index) => index + 2);
   const cycleLabel =
     settings.cycleStartDay === 1 ? 'Sem ajuste' : `Dia ${settings.cycleStartDay}`;
 
@@ -648,76 +651,65 @@ const Transactions: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-3 xl:hidden">
-            <button
-              type="button"
-              onClick={() => setShowCyclePicker((current) => !current)}
-              className="flex h-10 w-full items-center justify-between rounded-xl border border-border/60 bg-background/70 px-3 text-left text-sm font-medium text-foreground"
-              aria-expanded={showCyclePicker}
-            >
-              <span className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                Ciclo: {cycleLabel}
-              </span>
-              <span className="text-xs text-muted-foreground">Alterar</span>
-            </button>
-
-            <AnimatePresence>
-              {showCyclePicker ? (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  className="mt-2 rounded-xl border border-border bg-background p-2"
-                >
-                  <div className="grid grid-cols-5 gap-1.5">
-                    {[1, ...cycleDays].map((day) => (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => {
-                          void updateSettings({ cycleStartDay: day });
-                          setShowCyclePicker(false);
-                        }}
-                        className={`h-9 rounded-lg text-xs font-medium transition-colors ${
-                          settings.cycleStartDay === day
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted/50 text-muted-foreground'
-                        }`}
-                      >
-                        {day === 1 ? 'Sem' : day}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-
-          <div className="mt-3 hidden rounded-xl border border-border/60 bg-background/70 px-3 py-2 xl:block">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-foreground">Dia de vencimento do ciclo</p>
-                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  Opcional: use se seu mes financeiro comeca em um dia fixo, como dia 5 ou 10. Em meses curtos, dia 29, 30 ou 31 vira o ultimo dia valido.
-                </p>
-              </div>
-            <select
-              value={settings.cycleStartDay}
-              onChange={(event) =>
-                updateSettings({ cycleStartDay: Number(event.target.value) })
-              }
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs font-medium text-foreground sm:w-40"
-              aria-label="Dia de fechamento do mes"
-            >
-                <option value={1}>Sem ajuste</option>
-              {cycleDays.map((day) => (
-                <option key={day} value={day}>
-                  Dia {day}
-                </option>
-              ))}
-            </select>
+          <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border/60 bg-background/70 p-3 xl:flex-row xl:items-center">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-foreground">Dia de início do ciclo financeiro</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Escolha um dia no calendário. O ciclo se repete mensalmente; em meses curtos, usamos o último dia válido.
+              </p>
             </div>
+            <Popover open={showCyclePicker} onOpenChange={setShowCyclePicker}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isSavingCycle}
+                  aria-label={`Alterar dia do ciclo: ${cycleLabel}`}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-medium text-foreground hover:bg-accent disabled:opacity-50"
+                >
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  {isSavingCycle ? 'Salvando…' : cycleLabel}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto max-w-[calc(100vw-1rem)] p-0" aria-label="Calendário do ciclo financeiro">
+                <Calendar
+                  mode="default"
+                  locale={ptBR}
+                  labels={{ labelPrevious: () => 'Mês anterior', labelNext: () => 'Próximo mês' }}
+                  defaultMonth={new Date(selectedMonth.getFullYear(), selectedMonth.getMonth(), 1)}
+                  selected={(day) => day.getDate() === settings.cycleStartDay}
+                  disabled={isSavingCycle}
+                  onDayClick={async (date) => {
+                    if (!date || isSavingCycle) return;
+                    setIsSavingCycle(true);
+                    try {
+                      const saved = await updateSettings({ cycleStartDay: date.getDate() });
+                      if (saved) setShowCyclePicker(false);
+                    } finally {
+                      setIsSavingCycle(false);
+                    }
+                  }}
+                  initialFocus
+                />
+                <div className="border-t border-border p-2">
+                  <button
+                    type="button"
+                    disabled={isSavingCycle}
+                    className="min-h-11 w-full rounded-lg text-sm text-primary hover:bg-accent disabled:opacity-50"
+                    onClick={async () => {
+                      setIsSavingCycle(true);
+                      try {
+                        const saved = await updateSettings({ cycleStartDay: 1 });
+                        if (saved) setShowCyclePicker(false);
+                      } finally {
+                        setIsSavingCycle(false);
+                      }
+                    }}
+                  >
+                    Sem ajuste — começar no dia 1
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </header>
