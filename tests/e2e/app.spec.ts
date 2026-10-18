@@ -674,3 +674,34 @@ test('ciclo financeiro usa calendário, salva o dia e permite remover o ajuste',
   expect(updates).toEqual([10,1]);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+
+test('lista permite cadastro manual e edição sem duplicar nem perder o estado comprado', async ({ page }, info) => {
+  await backend(page); await login(page); await page.goto('/shopping-list');
+  const form=page.getByRole('form',{name:'Adicionar item à lista'});
+  await form.getByRole('textbox',{name:'Nome do item',exact:true}).fill('Arroz');
+  await form.getByRole('spinbutton',{name:'Quantidade',exact:true}).fill('2');
+  await form.getByRole('textbox',{name:'Unidade',exact:true}).fill('kg');
+  await form.getByRole('spinbutton',{name:'Preço por unidade (opcional)',exact:true}).fill('10.50');
+  await form.getByRole('button',{name:'Adicionar item',exact:true}).click();
+  await page.getByRole('button',{name:'Marcar item comprado',exact:true}).click();
+  await page.getByRole('button',{name:'Editar Arroz',exact:true}).click();
+  const edit=page.getByRole('form',{name:'Editar item da lista'});
+  await expect(edit.getByRole('textbox',{name:'Nome do item',exact:true})).toHaveValue('Arroz');
+  await edit.getByRole('textbox',{name:'Nome do item',exact:true}).fill('Arroz integral');
+  await edit.getByRole('spinbutton',{name:'Quantidade',exact:true}).fill('0.5');
+  await edit.getByRole('textbox',{name:'Unidade',exact:true}).fill('pacote');
+  await edit.getByRole('spinbutton',{name:'Preço por unidade (opcional)',exact:true}).fill('20');
+  await edit.getByRole('button',{name:'Salvar alterações',exact:true}).click();
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Editar Arroz integral',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Desmarcar item',exact:true})).toBeVisible();
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('deu-bom-shopping-list-v1')||'[]'));
+  expect(saved).toHaveLength(1);expect(saved[0]).toMatchObject({name:'Arroz integral',quantity:0.5,unit:'pacote',estimatedPrice:20,checked:true});
+  await page.getByRole('button',{name:'Editar Arroz integral',exact:true}).click();
+  await edit.getByRole('textbox',{name:'Nome do item',exact:true}).fill('Descartar mudança');
+  await edit.getByRole('button',{name:'Cancelar edição',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Editar Arroz integral',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:`/tmp/deubom-shopping-edit-${info.project.name}.png`});
+});

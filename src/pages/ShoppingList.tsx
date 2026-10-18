@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Check,
   Loader2,
   Plus,
+  Pencil,
   ShoppingCart,
   Trash2,
 } from 'lucide-react';
@@ -60,6 +61,8 @@ const ShoppingList: React.FC = () => {
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const nameInput = useRef<HTMLInputElement>(null);
   const [quantity, setQuantity] = useState(1);
   const [unit, setUnit] = useState('un');
   const [estimatedPriceInput, setEstimatedPriceInput] = useState('');
@@ -109,24 +112,43 @@ const ShoppingList: React.FC = () => {
     ]);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-
-    if (!name.trim()) return;
-
-    addItem({
-      name: name.trim(),
-      quantity: Math.max(1, quantity),
-      unit: unit.trim() || 'un',
-      estimatedPrice: parseOptionalPrice(estimatedPriceInput),
-      checked: false,
-    });
-
+  const resetForm = () => {
+    setEditingId(null);
     setName('');
     setQuantity(1);
     setUnit('un');
     setEstimatedPriceInput('');
-    toast.success('Item adicionado na lista.');
+  };
+
+  const editItem = (item: ShoppingListItem) => {
+    setEditingId(item.id);
+    setName(item.name);
+    setQuantity(item.quantity);
+    setUnit(item.unit);
+    setEstimatedPriceInput(item.estimatedPrice === null ? '' : String(item.estimatedPrice));
+    nameInput.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    nameInput.current?.focus({ preventScroll: true });
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!name.trim() || !Number.isFinite(quantity) || quantity <= 0) return;
+    const values = {
+      name: name.trim(),
+      quantity,
+      unit: unit.trim() || 'un',
+      estimatedPrice: parseOptionalPrice(estimatedPriceInput),
+    };
+    if (editingId) {
+      setItems(current => current.map(item => item.id === editingId
+        ? { ...item, ...values, updatedAt: new Date().toISOString() }
+        : item));
+      toast.success('Item atualizado.');
+    } else {
+      addItem({ ...values, checked: false });
+      toast.success('Item adicionado na lista.');
+    }
+    resetForm();
   };
 
   const handleVoiceTranscript = (transcript: string) => {
@@ -184,19 +206,8 @@ const ShoppingList: React.FC = () => {
 
   const removeItem = (id: string) => {
     setItems((current) => current.filter((item) => item.id !== id));
+    if (editingId === id) resetForm();
     toast.success('Item removido.');
-  };
-
-  const updateItemPrice = (id: string, value: string) => {
-    const estimatedPrice = parseOptionalPrice(value);
-
-    setItems((current) =>
-      current.map((item) =>
-        item.id === id
-          ? { ...item, estimatedPrice, updatedAt: new Date().toISOString() }
-          : item
-      )
-    );
   };
 
   if (loading) {
@@ -360,49 +371,67 @@ const ShoppingList: React.FC = () => {
 
       <main className="app-content space-y-4 py-5 sm:py-6">
         <form
+          aria-label={editingId ? 'Editar item da lista' : 'Adicionar item à lista'}
           onSubmit={handleSubmit}
           className="rounded-2xl border border-border bg-card p-3 shadow-[var(--shadow-sm)]"
         >
-          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_96px_96px_120px_auto]">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">{editingId ? 'Editar item' : 'Adicionar item manualmente'}</h2>
+            {editingId && <button type="button" onClick={resetForm} className="min-h-11 rounded-lg px-3 text-sm text-primary hover:bg-accent">Cancelar edição</button>}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_96px_96px_150px_auto]">
+            <label className="min-w-0 space-y-1 text-xs text-muted-foreground">Nome do item
             <input
               type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Item"
-              className="h-11 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              ref={nameInput}
+              required
+              aria-label="Nome do item"
+              placeholder="Nome do item"
+              className="h-11 w-full min-w-0 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            </label>
+            <label className="min-w-0 space-y-1 text-xs text-muted-foreground">Quantidade
             <input
               type="number"
-              min="1"
+              min="0.001"
+              step="any"
+              required
               value={quantity}
               onChange={(event) => setQuantity(Number(event.target.value))}
-              className="h-11 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-11 w-full min-w-0 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Quantidade"
             />
+            </label>
+            <label className="min-w-0 space-y-1 text-xs text-muted-foreground">Unidade (un, kg, L…)
             <input
               type="text"
               value={unit}
               onChange={(event) => setUnit(event.target.value)}
-              className="h-11 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="h-11 w-full min-w-0 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Unidade"
             />
+            </label>
+            <label className="min-w-0 space-y-1 text-xs text-muted-foreground">Preço unitário (opcional)
             <input
               type="number"
               min="0"
               step="0.01"
               value={estimatedPriceInput}
               onChange={(event) => setEstimatedPriceInput(event.target.value)}
-              placeholder="Preco opcional"
-              className="h-11 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              aria-label="Valor estimado"
+              placeholder="Preço por unidade"
+              className="h-11 w-full min-w-0 rounded-xl border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Preço por unidade (opcional)"
             />
+            </label>
             <button
               type="submit"
               disabled={!name.trim()}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-11 self-end items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" />
-              Add
+              {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editingId ? 'Salvar alterações' : 'Adicionar item'}
             </button>
           </div>
         </form>
@@ -448,29 +477,24 @@ const ShoppingList: React.FC = () => {
                   </p>
                 </div>
                 <div className="w-28 shrink-0 text-right">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.estimatedPrice ?? ''}
-                    onChange={(event) => updateItemPrice(item.id, event.target.value)}
-                    placeholder="Preco"
-                    className="mb-1 h-9 w-full rounded-xl border border-border bg-background px-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    aria-label={`Atualizar preco de ${item.name}`}
-                  />
                   <p className="text-sm font-semibold">
                     {item.estimatedPrice === null
                       ? '--'
                       : formatCurrency(item.quantity * item.estimatedPrice)}
                   </p>
+                  <div className="mt-1 flex justify-end gap-1">
+                  <button type="button" onClick={() => editItem(item)} aria-label={`Editar ${item.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-primary hover:bg-accent">
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => removeItem(item.id)}
-                    className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-expense"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-expense"
                     aria-label="Remover item"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                  </div>
                 </div>
               </motion.article>
             ))}
