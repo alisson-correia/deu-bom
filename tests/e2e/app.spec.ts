@@ -649,3 +649,28 @@ test('tema global acompanha todas as abas com sinais financeiros distintos', asy
   }
  }
 });
+
+
+test('ciclo financeiro usa calendário, salva o dia e permite remover o ajuste', async ({ page }, info) => {
+  await backend(page); await login(page);
+  const updates: number[] = [];
+  await page.route('https://supabase.test/rest/v1/profiles**', async route => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    updates.push(route.request().postDataJSON().cycle_start_day);
+    return route.fulfill({status:200,contentType:'application/json',body:'{}'});
+  });
+  await page.goto('/transactions');
+  await page.getByRole('button', {name:'Alterar dia do ciclo: Sem ajuste',exact:true}).click();
+  const calendar = page.getByRole('dialog', {name:'Calendário do ciclo financeiro'});
+  await expect(calendar.getByRole('grid')).toBeVisible();
+  expect(await calendar.evaluate(el => {const r=el.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth;})).toBe(true);
+  await page.screenshot({path:`/tmp/deubom-cycle-${info.project.name}.png`});
+  await calendar.getByRole('gridcell',{name:'10',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Alterar dia do ciclo: Dia 10',exact:true})).toBeVisible();
+  await expect(calendar).toHaveCount(0);
+  await page.getByRole('button',{name:'Alterar dia do ciclo: Dia 10',exact:true}).click();
+  await calendar.getByRole('button',{name:'Sem ajuste — começar no dia 1',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Alterar dia do ciclo: Sem ajuste',exact:true})).toBeVisible();
+  expect(updates).toEqual([10,1]);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
