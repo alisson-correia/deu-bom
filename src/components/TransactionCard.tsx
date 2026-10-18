@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, CheckCircle2, Circle, GripVertical, Trash2 } from 'lucide-react';
+import { Check, GripVertical, Trash2 } from 'lucide-react';
 import { useSwipeable } from 'react-swipeable';
 import { useFinanceStore, useCategoryById } from '@/stores/financeStore';
 import { formatCurrency } from '@/utils/currency';
@@ -36,11 +36,12 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
   const [swipeOffset, setSwipeOffset] = React.useState(0);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [statusTarget,setStatusTarget] = React.useState<'pending'|'completed'>('completed');
   const [showStatusScopeModal, setShowStatusScopeModal] = React.useState(false);
   const [isResolvingDelete, setIsResolvingDelete] = React.useState(false);
   const [isResolvingStatus, setIsResolvingStatus] = React.useState(false);
   const category = useCategoryById(transaction.categoryId);
-  const { toggleTransactionStatus, updateTransaction, deleteTransaction } = useFinanceStore();
+  const { updateTransaction, deleteTransaction } = useFinanceStore();
 
   const isRecurring = !!(transaction.groupId || transaction.parentTransactionId || (transaction.totalInstallments && transaction.totalInstallments > 1));
 
@@ -72,14 +73,18 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
     }
   }, [isDeleting]);
 
-  const handleStatusToggle = (e: React.MouseEvent) => {
+  const handleStatusToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isResolvingStatus) return;
+    const target = transaction.status === 'completed' ? 'pending' : 'completed';
+    setStatusTarget(target);
     if (isRecurring) {
       setShowStatusScopeModal(true);
       return;
     }
 
-    toggleTransactionStatus(transaction.id);
+    setIsResolvingStatus(true);
+    try { await updateTransaction(transaction.id,{status:target}); } finally { setIsResolvingStatus(false); }
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -112,7 +117,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
   const handleStatusScopeConfirm = async (scope: 'single' | 'future' | 'all') => {
     if (isResolvingStatus) return;
 
-    const nextStatus = transaction.status === 'completed' ? 'pending' : 'completed';
+    const nextStatus = statusTarget;
 
     setIsResolvingStatus(true);
     try {
@@ -189,37 +194,16 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
           <Trash2 className="w-5 h-5 text-destructive-foreground" />
         </div>
 
-        <div className={compact ? '' : 'flex items-stretch gap-2'}>
-          {!compact ? (
-            <button
-              type="button"
-              onClick={handleStatusToggle}
-              aria-label={toggleLabel}
-              title={toggleLabel}
-              className={`flex w-12 flex-shrink-0 items-center justify-center rounded-xl border text-sm font-medium transition-colors ${
-                isPending
-                  ? 'border-pending/25 bg-card text-pending shadow-[var(--shadow-sm)] hover:bg-pending/10'
-                  : isIncome
-                    ? 'border-income/20 bg-income/10 text-income hover:bg-income/15'
-                    : 'border-primary/20 bg-primary/10 text-primary hover:bg-primary/15'
-              }`}
-            >
-              {isPending ? (
-                <CheckCircle2 className="h-5 w-5" />
-              ) : (
-                <Circle className="h-5 w-5" />
-              )}
-            </button>
-          ) : null}
-
+        <div>
           {/* Card content */}
           <div
             onClick={() => {
               if (didDragRef.current) return;
               onEdit(transaction);
             }}
+            data-transaction-id={transaction.id}
             className={`
-              relative min-w-0 flex-1 bg-card border border-border rounded-xl ${compact ? 'p-3' : 'p-4'}
+              relative min-w-0 flex-1 bg-card border border-primary/25 rounded-xl ${compact ? 'p-3' : 'p-4'}
               active:scale-[0.98] transition-transform duration-100
               cursor-pointer group ${draggable ? 'select-none' : ''}
             `}
@@ -229,11 +213,11 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
               className={`mt-0.5 flex items-center justify-center rounded-full flex-shrink-0 ${
                 compact ? 'h-8 w-8' : 'h-9 w-9'
               }`}
-              style={{ backgroundColor: `${category?.color || '#64748b'}20` }}
+              style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
             >
               <IconComponent
                 className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'}
-                style={{ color: category?.color || '#64748b' }}
+                style={{ color: 'hsl(var(--primary))' }}
               />
             </div>
 
@@ -261,7 +245,7 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
                       className={`
                         font-mono ${compact ? 'text-xs' : 'text-sm'} font-semibold
                         ${isIncome ? 'text-income' : 'text-expense'}
-                        ${isPending ? 'opacity-60' : ''}
+
                       `}
                     >
                       {isIncome ? '+' : '-'} {formatCurrency(transaction.amount)}
@@ -283,22 +267,21 @@ export const TransactionCard: React.FC<TransactionCardProps> = ({
               </div>
 
               <div className={`${compact ? 'mt-2' : 'mt-3'} flex items-center justify-between gap-3`}>
-                <div
-                  className={`inline-flex h-5 items-center gap-1 rounded-full border px-1.5 text-[10px] font-medium ${
-                    isPending
-                      ? 'border-pending/15 bg-pending/5 text-pending'
-                      : isIncome
-                        ? 'border-income/20 bg-income/10 text-income'
-                        : 'border-primary/20 bg-primary/10 text-primary'
-                  }`}
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={!isPending}
+                  aria-label={toggleLabel}
+                  disabled={isResolvingStatus}
+                  onClick={handleStatusToggle}
+                  title={toggleLabel}
+                  className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-colors disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isPending ? 'border-pending/35 bg-pending/10 text-pending hover:border-primary/50 hover:bg-primary/10' : 'border-primary/40 bg-primary/15 text-primary hover:bg-primary/20'}`}
                 >
-                  {isPending ? (
-                    <Circle className="h-2.5 w-2.5" />
-                  ) : (
-                    <Check className="h-2.5 w-2.5" />
-                  )}
-                  {statusLabel}
-                </div>
+                  <span aria-hidden="true" className={`flex h-4 w-4 items-center justify-center rounded border ${isPending ? 'border-muted-foreground/60' : 'border-primary bg-primary text-primary-foreground'}`}>
+                    {!isPending && <Check className="h-3 w-3" />}
+                  </span>
+                  {isResolvingStatus ? 'Salvando…' : statusLabel}
+                </button>
               </div>
 
               {draggable ? (

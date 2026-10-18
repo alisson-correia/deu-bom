@@ -42,9 +42,9 @@ import {
 import { formatCurrency } from '@/utils/currency';
 
 const chartConfig = {
-  income: { label: 'Receitas', color: '#22c55e' },
-  expense: { label: 'Despesas', color: '#ef4444' },
-  balance: { label: 'Saldo', color: '#3b82f6' },
+  income: { label: 'Receitas', color: 'hsl(var(--income))' },
+  expense: { label: 'Despesas', color: 'hsl(var(--expense))' },
+  balance: { label: 'Saldo', color: 'hsl(var(--primary))' },
 };
 
 const typeOptions: Array<{ value: 'all' | TransactionType; label: string }> = [
@@ -534,7 +534,7 @@ const Analytics: React.FC = () => {
                           animate={{ width: `${item.percentage}%` }}
                           transition={{ duration: 0.45, delay: index * 0.05 }}
                           className="h-full rounded-full"
-                          style={{ backgroundColor: item.category.color }}
+                          style={{ backgroundColor: 'hsl(var(--primary))' }}
                         />
                       </div>
                     </motion.div>

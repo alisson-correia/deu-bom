@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from './useTheme';
 import { parseVoiceTheme } from '@/services/voiceCommandParser';
 import { toast } from 'sonner';
+import { mergeVoiceSegments } from '@/services/voiceTranscript';
 
 type SpeechRecognitionResultLike = ArrayLike<{ transcript: string }> & { isFinal: boolean };
 type SpeechRecognitionLike = {
@@ -53,7 +54,7 @@ export const useVoiceCommand = ({ onTranscript }: { onTranscript: (text: string)
   }, [clearTimers, detach]);
   const finalize = useCallback(() => {
     if (!activeRef.current) return;
-    const text = [...completedRef.current, ...currentRef.current.values()].join(' ').replace(/\s+/g, ' ').trim();
+    const text = mergeVoiceSegments([...completedRef.current, ...currentRef.current.values()]);
     activeRef.current = false; finishingRef.current = false; clearTimers(); detach(); setIsListening(false);
     if (!text) { toast.error('Não consegui confirmar a fala. Tente novamente ou preencha manualmente.'); return; }
     setLastTranscript(text);
@@ -84,21 +85,23 @@ export const useVoiceCommand = ({ onTranscript }: { onTranscript: (text: string)
       currentRef.current.clear(); recognitionRef.current = recognition;
       recognition.onstart = () => undefined;
       recognition.onresult = (event) => {
-        if (!activeRef.current) return;
+        if (!activeRef.current || recognitionRef.current !== recognition) return;
+        // Each event is a complete result snapshot; discard obsolete indices too.
+        currentRef.current.clear();
         const interim: string[] = [];
         for (let index = 0; index < event.results.length; index += 1) {
           const result = event.results[index], text = result?.[0]?.transcript?.trim();
           if (!text) continue;
           if (result.isFinal) currentRef.current.set(index, text); else interim.push(text);
         }
-        setLastTranscript([...completedRef.current, ...currentRef.current.values(), ...interim].join(' '));
+        setLastTranscript(mergeVoiceSegments([...completedRef.current, ...currentRef.current.values(), ...interim]));
         if (!finishingRef.current) {
           clearTimeout(silenceRef.current);
           silenceRef.current = setTimeout(stopListening, VOICE_SILENCE_MS);
         }
       };
       recognition.onerror = (event) => {
-        if (!activeRef.current) return;
+        if (!activeRef.current || recognitionRef.current !== recognition) return;
         if (event.error === 'no-speech' && (completedRef.current.length || currentRef.current.size)) return;
         const messages: Record<string, string> = {
           'audio-capture': 'Nao encontrei um microfone ativo neste aparelho.',
@@ -110,7 +113,8 @@ export const useVoiceCommand = ({ onTranscript }: { onTranscript: (text: string)
         if (event.error !== 'aborted') toast.error(messages[event.error] || 'Não consegui ouvir agora. Tente novamente.');
       };
       recognition.onend = () => {
-        if (!activeRef.current) return;
+        if (!activeRef.current || recognitionRef.current !== recognition) return;
+        recognition.onresult = null; recognition.onend = null; recognition.onerror = null;
         recognitionRef.current = null;
         completedRef.current.push(...currentRef.current.values()); currentRef.current.clear();
         if (finishingRef.current) { finalize(); return; }

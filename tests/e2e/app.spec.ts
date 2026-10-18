@@ -31,6 +31,13 @@ async function backend(page: Page) {
       if (req.method() === 'GET') return state.failRead ? reply({ message: 'denied' }, 403) : reply(state.rows);
       const input = req.postDataJSON(); state.writes.push(input);
       if (state.failWrite) return reply({ message: 'denied' }, 403);
+      if (req.method() === 'PATCH') {
+        const filter = url.searchParams.get('id') || '';
+        const ids = filter.startsWith('in.(') ? filter.slice(4,-1).split(',') : [filter.replace(/^eq\./,'')];
+        const matches = state.rows.filter(row => ids.includes(String(row.id)));
+        for (const row of matches) Object.assign(row,input,{updated_at:new Date().toISOString()});
+        return reply(matches.map(row=>({id:row.id})));
+      }
       if (req.method() === 'POST') {
         const items = (Array.isArray(input) ? input : [input]).map((item) => ({ id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...item }));
         state.rows.push(...items); return reply(items);
@@ -63,7 +70,7 @@ async function voice(page: Page) {
         Object.assign(window, { sendVoice: (text: string, final = true) => {
           this.onresult?.({ resultIndex: 0, results: [Object.assign([{ transcript: text }], { isFinal: final })] });
           if (final) this.onend?.();
-        }, denyVoice: () => { this.onerror?.({ error: 'not-allowed' }); this.onend?.(); } });
+        }, sendVoiceSnapshot: (segments: {text:string;final:boolean}[]) => { this.onresult?.({resultIndex:0,results:segments.map(segment=>Object.assign([{transcript:segment.text}],{isFinal:segment.final}))}); }, endVoiceWithLateReplay: () => {const end=this.onend;const result=this.onresult;end?.();result?.({resultIndex:0,results:[Object.assign([{transcript:'despesa luz 300 reais'}],{isFinal:true})]});end?.();}, denyVoice: () => { this.onerror?.({ error: 'not-allowed' }); this.onend?.(); } });
       }
       stop() { this.onend?.(); }
       abort() {}
@@ -581,4 +588,64 @@ test('voz calcula quantidade e embalagem e pede apenas confirmação quando os d
  expect(state.rows).toHaveLength(1); expect(state.rows[0]).toMatchObject({amount:500,status:'completed',date:'2026-11-10',category_id:categories[0].id}); expect(state.rows[0].notes).toContain('10 un de 1 kg cada');
  await page.getByRole('button',{name:'Falar com o app',exact:true}).click(); await page.evaluate(()=> (window as unknown as {sendVoice:(text:string)=>void}).sendVoice('despesa açúcar 50 reais')); await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
  await expect(dialog.getByLabel('Data que faltou na fala')).toBeVisible(); await expect(dialog.getByRole('button',{name:'Salvar',exact:true})).toBeDisabled();
+});
+
+
+test('voz descarta ecos entre resultados cumulativos e reinícios do microfone', async ({page})=>{
+ await voice(page);const state=await backend(page);await login(page);await page.clock.install();
+ await page.getByRole('button',{name:'Falar com o app',exact:true}).click();
+ await page.evaluate(()=>{const speech=window as unknown as {sendVoiceSnapshot:(segments:{text:string;final:boolean}[])=>void;endVoiceWithLateReplay:()=>void};
+ speech.sendVoiceSnapshot([{text:'despesa luz 300 reais',final:true},{text:'luz 300 reais',final:false}]);
+ speech.sendVoiceSnapshot([{text:'despesa luz 300 reais',final:true},{text:'luz 300 reais',final:true}]);
+ speech.sendVoiceSnapshot([{text:'despesa luz 300 reais',final:true}]);
+ speech.endVoiceWithLateReplay();});
+ await page.clock.fastForward(250);
+ await page.evaluate(()=>(window as unknown as {sendVoiceSnapshot:(s:{text:string;final:boolean}[])=>void}).sendVoiceSnapshot([{text:'despesa luz 300 reais dia 10/11/2026 à vista pendente',final:true}]));
+ await page.getByRole('button',{name:'Concluir fala',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'Nova transacao'});await expect(dialog.getByLabel('Descrição')).toHaveValue('luz');await expect(dialog.getByLabel('Valor',{exact:true})).toHaveValue('300,00');expect(state.writes).toHaveLength(0);
+});
+
+test('status fica dentro do cartão: marcado é pago ou recebido e desmarcado é pendente', async ({page},info)=>{
+ const state=await backend(page);const now=new Date();const date=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-10`;
+ state.rows.push({id:'status-expense',user_id:USER,workspace_id:null,title:'Conta de luz',amount:300,type:'expense',status:'pending',category_id:categories[0].id,date,recurrence_type:'none',created_at:now.toISOString(),updated_at:now.toISOString()},{id:'status-income',user_id:USER,workspace_id:null,title:'Recebimento teste',amount:500,type:'income',status:'pending',category_id:categories[1].id,date,recurrence_type:'none',created_at:now.toISOString(),updated_at:now.toISOString()});
+ await login(page);
+ const paid=page.getByRole('checkbox',{name:'Marcar como pago',exact:true});await expect(paid).not.toBeChecked();await expect(paid).toContainText('Pendente');
+ await paid.click();const undo=page.getByRole('checkbox',{name:'Marcar como pendente',exact:true});await expect(undo).toBeChecked();await expect(undo).toContainText('Pago');expect(state.rows[0].status).toBe('completed');
+ await undo.click();await expect(paid).not.toBeChecked();expect(state.rows[0].status).toBe('pending');
+ state.failWrite=true;const denied=page.waitForResponse(response=>response.request().method()==='PATCH'&&response.status()===403);await paid.click();await denied;await expect(paid).toBeEnabled();await expect(paid).not.toBeChecked();expect(state.rows[0].status).toBe('pending');state.failWrite=false;
+ await page.getByRole('checkbox',{name:'Marcar como recebido',exact:true}).click();await expect(page.getByRole('checkbox',{name:'Marcar como pendente',exact:true})).toContainText('Recebido');
+ await page.reload();await expect(page.getByRole('checkbox',{name:'Marcar como pendente',exact:true})).toBeChecked();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ for(const mode of ['Claro','Escuro']) {await theme(page,mode);await page.screenshot({path:`/tmp/deubom-status-${info.project.name}-${mode}.png`,fullPage:true,animations:'disabled'});}
+});
+
+
+test('cartão existente acompanha o tema e mantém a cor financeira do valor', async ({page})=>{
+ const state=await backend(page);const now=new Date();state.rows.push({id:'existing-color',user_id:USER,workspace_id:null,title:'Cartão anterior à troca de cor',amount:300,type:'expense',status:'completed',category_id:categories[0].id,date:`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-10`,recurrence_type:'none',created_at:now.toISOString(),updated_at:now.toISOString()});
+ await login(page);await page.addStyleTag({content:'*, *::before, *::after {transition:none!important;animation:none!important;}'});
+ const card=page.locator('[data-transaction-id="existing-color"]');
+ const styles=async()=>card.evaluate(element=>({icon:getComputedStyle(element.querySelector('svg')!).color,value:getComputedStyle(element.querySelector('.font-mono')!).color,border:getComputedStyle(element).borderColor,status:getComputedStyle(element.querySelector('[role="checkbox"]')!).backgroundColor}));
+ for(const mode of ['Claro','Escuro']){await theme(page,mode);let before;for(const color of ['Azul','Roxo','Rosa','Verde']){await page.getByRole('button',{name:'Alterar tema'}).click();await page.getByRole('menuitemradio',{name:color,exact:true}).click();const current=await styles();expect(current.icon).not.toBe(current.value);if(before){expect(current.value).toBe(before.value);expect(current.icon).not.toBe(before.icon);expect(current.border).not.toBe(before.border);expect(current.status).not.toBe(before.status);}before=current;}}
+ expect(state.writes).toHaveLength(0);expect(state.rows[0].title).toBe('Cartão anterior à troca de cor');
+});
+
+
+test('tema global acompanha todas as abas com sinais financeiros distintos', async ({page})=>{
+ test.setTimeout(120000);
+ await backend(page);await login(page);
+ for(const mode of ['Claro','Escuro']){
+  await theme(page,mode);const previousByPage=new Map<string,Record<string,string>>();
+  for(const color of ['Azul','Rosa']){
+   await page.getByRole('button',{name:'Alterar tema'}).click();await page.getByRole('menuitemradio',{name:color,exact:true}).click();
+   let globalPrimary='';
+   for(const path of ['/','/transactions','/budgets','/analytics','/shopping-list','/festometro','/settings','/more']){
+    await page.goto(path);await expect(page.locator('html')).toHaveAttribute('data-accent',color==='Azul'?'blue':'pink');
+    const current=await page.evaluate(()=>{const root=getComputedStyle(document.documentElement);return Object.fromEntries(['--primary','--card','--foreground','--income','--expense','--pending'].map(key=>[key,root.getPropertyValue(key).trim()]));});
+    if(globalPrimary)expect(current['--primary']).toBe(globalPrimary);else globalPrimary=current['--primary'];
+    expect(current['--income']).toMatch(/^145 /);expect(current['--expense']).toMatch(/^355 /);expect(current['--pending']).toMatch(/^38 /);
+    const previous=previousByPage.get(path);if(previous){for(const token of ['--primary','--card','--foreground'])expect(current[token]).not.toBe(previous[token]);for(const role of ['--income','--expense','--pending'])expect(current[role]).toBe(previous[role]);}
+    previousByPage.set(path,current);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+   }
+  }
+ }
 });

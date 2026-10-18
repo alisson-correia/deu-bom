@@ -95,11 +95,11 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ isOpen, onClose }) => {
                     <>
                       <div
                         className="flex h-10 w-10 items-center justify-center rounded-2xl"
-                        style={{ backgroundColor: `${selectedCategory.color}20` }}
+                        style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
                       >
                         <CategoryIcon
                           className="h-5 w-5"
-                          style={{ color: selectedCategory.color }}
+                          style={{ color: 'hsl(var(--primary))' }}
                         />
                       </div>
                       <span>{selectedCategory.name}</span>
@@ -142,9 +142,9 @@ export const BudgetForm: React.FC<BudgetFormProps> = ({ isOpen, onClose }) => {
                           >
                             <div
                               className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl"
-                              style={{ backgroundColor: `${category.color}20` }}
+                              style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
                             >
-                              <Icon className="h-5 w-5" style={{ color: category.color }} />
+                              <Icon className="h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
                             </div>
                             <p className="truncate text-sm font-medium">{category.name}</p>
                           </button>

@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
         <section aria-label="Resumo do mês" className="overflow-hidden rounded-2xl border border-border bg-card">
           <div className="bg-primary/5 px-5 py-5 sm:px-6 sm:py-6">
             <p className="text-sm font-medium text-muted-foreground">Saldo confirmado</p>
-            <p className={`dashboard-balance mt-2 break-words text-3xl font-semibold tracking-tight sm:text-4xl ${summary.completedBalance < 0 ? 'text-expense' : 'text-foreground'}`}>
+            <p className={`dashboard-balance mt-2 break-words text-3xl font-semibold tracking-tight sm:text-4xl ${summary.completedBalance < 0 ? 'text-expense' : summary.completedBalance > 0 ? 'text-income' : 'text-primary'}`}>
               {formatCurrency(summary.completedBalance)}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">Receitas recebidas menos despesas pagas neste mês.</p>
@@ -75,11 +75,11 @@ const Dashboard: React.FC = () => {
           <dl className="grid grid-cols-2 divide-x divide-border border-t border-border">
             <div className="min-w-0 px-4 py-4 sm:px-6">
               <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />A pagar</dt>
-              <dd className="mt-1 break-words text-base font-semibold sm:text-lg">{formatCurrency(summary.pendingExpense)}</dd>
+              <dd className="mt-1 break-words text-base font-semibold text-expense sm:text-lg">{formatCurrency(summary.pendingExpense)}</dd>
             </div>
             <div className="min-w-0 px-4 py-4 sm:px-6">
               <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><ArrowDownLeft aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />A receber</dt>
-              <dd className="mt-1 break-words text-base font-semibold sm:text-lg">{formatCurrency(summary.pendingIncome)}</dd>
+              <dd className="mt-1 break-words text-base font-semibold text-income sm:text-lg">{formatCurrency(summary.pendingIncome)}</dd>
             </div>
           </dl>
         </section>

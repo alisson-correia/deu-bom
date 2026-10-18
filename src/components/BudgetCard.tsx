@@ -97,9 +97,9 @@ export const BudgetCard: React.FC<BudgetCardProps> = ({ onAddBudget }) => {
                 <div className="flex items-center gap-3">
                   <div
                     className="flex h-11 w-11 items-center justify-center rounded-2xl"
-                    style={{ backgroundColor: `${budget.category?.color}20` }}
+                    style={{ backgroundColor: 'hsl(var(--primary) / 0.15)' }}
                   >
-                    <Icon className="h-5 w-5" style={{ color: budget.category?.color }} />
+                    <Icon className="h-5 w-5" style={{ color: 'hsl(var(--primary))' }} />
                   </div>
                   <div>
                     <h3 className="font-medium">{budget.category?.name}</h3>
